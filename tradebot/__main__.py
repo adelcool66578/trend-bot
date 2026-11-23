@@ -18,6 +18,7 @@ from .config import load_config
 from .dashboard import build, copy_assets
 from .data import LiveData
 from .live import alerts_for, daily_due, load_live, save_live, snapshot
+from .review import build_review, review_message
 
 
 def _daily(cfg, state, data, a, force=False):
@@ -77,8 +78,11 @@ def _scheduled_notices(cfg, state, live, a, now):
             and live.get("summary_sent_on") != local.date().isoformat()):
         title, msg, prio, tags = notify.morning_summary(state, live, cfg, local)
         notify.send(title, msg, prio, tags, click=url)
+        recs = build_review(state, live, cfg, now)
+        live["review"] = {"time": now.strftime("%Y-%m-%dT%H:%M:%SZ"), "items": recs}
+        notify.send(*review_message(recs), click=url)
         live["summary_sent_on"] = local.date().isoformat()
-        print("  sent morning summary")
+        print("  sent morning summary + review")
         changed = True
     if changed:
         save_live(live, a.live, a.docs)

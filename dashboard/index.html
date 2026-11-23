@@ -143,6 +143,7 @@ dl.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:0;font-siz
           <div class="card" id="now"></div>
         </div>
         <div class="card" style="margin-top:14px"><h2>Where the money is</h2><div class="split" id="split"></div><div class="sl" id="splitl"></div></div>
+        <div class="card" style="margin-top:14px"><div class="chead"><h2>Review &amp; recommendations</h2><span class="note" id="revtime" style="margin:0"></span></div><div id="review"></div></div>
       </section>
 
       <section id="charts">
@@ -394,6 +395,15 @@ function renderOverview() {
     '<span style="margin-left:auto">Crypto sleeve <b>'+money(n.crypto,0)+'</b> · Nasdaq sleeve <b>'+money(n.nasdaq,0)+'</b></span>';
 }
 
+function renderReview() {
+  const r = L && L.review;
+  if (!r || !r.items || !r.items.length) { $("#review").innerHTML = '<div class="note">The first review arrives with the 7am morning summary.</div>'; $("#revtime").textContent = ""; return; }
+  const B = {urgent:"b-bad", watch:"b-warn", action:"b-buy", info:"b-grey", option:"b-nasdaq"};
+  const W = {urgent:"urgent", watch:"watch", action:"do", info:"info", option:"option"};
+  $("#revtime").textContent = "updated " + niceTime(r.time);
+  $("#review").innerHTML = r.items.map(i => '<div class="row"><span class="badge '+(B[i.kind]||"b-grey")+'">'+i.rank+'. '+(W[i.kind]||i.kind)+'</span><div><b>'+esc(i.title)+'</b>'+(i.detail?'<div class="note" style="margin:2px 0 0">'+esc(i.detail)+'</div>':'')+'</div></div>').join("");
+}
+
 function priceChart(sym) {
   const n = cur(), live = n.prices[sym]; let h = hist(sym);
   const el = $("#c"+sym); if (!h.length) { el.innerHTML = '<div class="empty">Price history appears after the next daily run.</div>'; return; }
@@ -541,7 +551,7 @@ function renderAll() {
   D = window.BOT_DATA; L = window.BOT_LIVE || null;
   if (!D) { $("#content").innerHTML = '<div class="card empty">No data yet. The app fills in after the bot\'s first run.</div>'; return; }
   S = D.state; C = D.config; EQ = S.equity || []; T = D.trades || []; start = C.starting_cash;
-  renderStatus(); renderOverview(); renderPositions(); renderTrades(); renderSignals(); renderActivity(); renderAbout();
+  renderStatus(); renderOverview(); renderReview(); renderPositions(); renderTrades(); renderSignals(); renderActivity(); renderAbout();
   if ($("#charts").classList.contains("on")) renderCharts();
 }
 

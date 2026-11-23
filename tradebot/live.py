@@ -92,6 +92,7 @@ def snapshot(cfg, state, data, now, live_prev=None):
         "last_daily_total": last_daily, "nasdaq_live": q_live, "crypto_live": c_live,
         "intraday": intraday, "alerted_on": (live_prev or {}).get("alerted_on"),
         "summary_sent_on": (live_prev or {}).get("summary_sent_on"),
+        "review": (live_prev or {}).get("review"),
         "schedule_confirmed": (live_prev or {}).get("schedule_confirmed"),
         "fail_streak": ((live_prev or {}).get("fail_streak", 0) + 1) if len(warnings) >= 5 else 0,
     }

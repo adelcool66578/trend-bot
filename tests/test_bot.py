@@ -382,12 +382,37 @@ class TestMorningNotices(unittest.TestCase):
         live = snapshot(CFG, state, data, U("2024-12-01T17:50:00"), None)   # 6:50am NZDT: too early
         self.assertEqual(self._run(state, live, U("2024-12-01T17:50:00")), [])
         sent = self._run(state, live, U("2024-12-01T18:05:00"))             # 7:05am NZDT
-        self.assertEqual(sent, ["Trend Bot morning summary"])
+        self.assertEqual(sent, ["Trend Bot morning summary", "Trend Bot: review & recommendations"])
+        self.assertTrue(live["review"]["items"])
         self.assertEqual(self._run(state, live, U("2024-12-01T18:15:00")), [])  # not twice
         self.assertEqual(self._run(state, live, U("2024-12-02T02:00:00")), [])  # 3pm: outside window
         from tradebot import notify
         title, msg, _, _ = notify.morning_summary(state, live, CFG, U("2024-12-01T18:05:00"))
         self.assertIn("Holding:", msg); self.assertIn("Checks in last 24h", msg)
+
+    def test_review_rules(self):
+        from tradebot.review import build_review, review_message
+        state, data, snapshot = self._setup()
+        now = dt.datetime(2024, 12, 2, 18, 5, tzinfo=dt.timezone.utc)
+        live = snapshot(CFG, state, data, now, None)
+        state = copy.deepcopy(state); state["start_date"] = "2024-11-27"   # day 5 of the trial
+        recs = build_review(state, live, CFG, now)
+        self.assertTrue(recs)
+        self.assertEqual([r["rank"] for r in recs], list(range(1, len(recs) + 1)))
+        self.assertTrue(all(recs[i]["score"] >= recs[i + 1]["score"] for i in range(len(recs) - 1)))
+        # inside the trial: never suggests rule changes
+        self.assertFalse(any(r["kind"] == "option" for r in recs))
+        self.assertTrue(any("No rule changes" in r["title"] for r in recs))
+        # after the trial: tested upgrades offered, halt comes first
+        st2 = copy.deepcopy(state); st2["start_date"] = "2024-08-01"; st2["halted"] = True; st2["halt_reason"] = "test"
+        recs2 = build_review(st2, live, CFG, now)
+        self.assertEqual(recs2[0]["title"], "Review the safety halt")
+        self.assertTrue(any(r["kind"] == "option" for r in recs2))
+        title, msg, _, _ = review_message(recs2)
+        self.assertTrue(msg.startswith("1. "))
+        # signal near flipping is flagged
+        live3 = copy.deepcopy(live); live3["nasdaq_live"] = {"gap": 0.01}
+        self.assertTrue(any("close to flipping" in r["title"] for r in build_review(state, live3, CFG, now)))
 
     def test_schedule_confirmed_once(self):
         state, data, snapshot = self._setup()
