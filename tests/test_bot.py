@@ -331,7 +331,7 @@ class TestLiveRefresh(unittest.TestCase):
         s = synth_series()
         state, reps = run_days(s, "2024-08-01", "2024-08-05")
         msgs = notify.daily_messages(state, reps[-1], CFG)
-        self.assertTrue(any("summary" in m[0] for m in msgs))
+        self.assertFalse(any("summary" in m[0] for m in msgs))  # summary moved to the morning
         first = [r for r in reps if r["fills"]][0]
         self.assertTrue(any("trades" in m[0] for m in notify.daily_messages(state, first, CFG)))
         self.assertFalse(notify.send("x", "y", topic=""))  # no topic: silently skipped
@@ -350,6 +350,52 @@ class TestLiveRefresh(unittest.TestCase):
         finally:
             srv.shutdown()
         self.assertTrue(ok); self.assertEqual(got[0], ("/abc", "Trend Bot test", "hello"))
+
+
+class TestMorningNotices(unittest.TestCase):
+    def _setup(self):
+        from tradebot.live import snapshot
+        s = synth_series()
+        state, _ = run_days(s, "2024-08-01", "2024-12-01")
+        data = ReplayData(s); data.set_date("2024-12-02")
+        return state, data, snapshot
+
+    def _run(self, state, live, utc, event=None):
+        import os, argparse
+        from tradebot import notify
+        from tradebot.__main__ import _scheduled_notices
+        notify.SENT.clear()
+        old = os.environ.get("GITHUB_EVENT_NAME")
+        if event: os.environ["GITHUB_EVENT_NAME"] = event
+        else: os.environ.pop("GITHUB_EVENT_NAME", None)
+        os.environ["NTFY_TOPIC"] = "t"; os.environ["NTFY_SERVER"] = "http://127.0.0.1:9"  # unreachable: send fails quietly
+        with tempfile.TemporaryDirectory() as td:
+            a = argparse.Namespace(live=str(Path(td) / "l.json"), docs=str(Path(td) / "d"))
+            _scheduled_notices(CFG, state, live, a, utc)
+        for k in ("NTFY_TOPIC", "NTFY_SERVER"): os.environ.pop(k, None)
+        if old: os.environ["GITHUB_EVENT_NAME"] = old
+        return [m["title"] for m in notify.SENT]
+
+    def test_summary_at_7am_nz_once(self):
+        state, data, snapshot = self._setup()
+        U = lambda s: dt.datetime.fromisoformat(s).replace(tzinfo=dt.timezone.utc)
+        live = snapshot(CFG, state, data, U("2024-12-01T17:50:00"), None)   # 6:50am NZDT: too early
+        self.assertEqual(self._run(state, live, U("2024-12-01T17:50:00")), [])
+        sent = self._run(state, live, U("2024-12-01T18:05:00"))             # 7:05am NZDT
+        self.assertEqual(sent, ["Trend Bot morning summary"])
+        self.assertEqual(self._run(state, live, U("2024-12-01T18:15:00")), [])  # not twice
+        self.assertEqual(self._run(state, live, U("2024-12-02T02:00:00")), [])  # 3pm: outside window
+        from tradebot import notify
+        title, msg, _, _ = notify.morning_summary(state, live, CFG, U("2024-12-01T18:05:00"))
+        self.assertIn("Holding:", msg); self.assertIn("Checks in last 24h", msg)
+
+    def test_schedule_confirmed_once(self):
+        state, data, snapshot = self._setup()
+        now = dt.datetime(2024, 12, 2, 2, 0, tzinfo=dt.timezone.utc)
+        live = snapshot(CFG, state, data, now, None)
+        self.assertEqual(self._run(state, live, now, event="workflow_dispatch"), [])
+        self.assertEqual(self._run(state, live, now, event="schedule"), ["Trend Bot: live checks running"])
+        self.assertEqual(self._run(state, live, now, event="schedule"), [])
 
 
 class FakeAlpaca(BaseHTTPRequestHandler):

@@ -55,6 +55,35 @@ def _live(cfg, state, data, a, now):
     return live
 
 
+def _scheduled_notices(cfg, state, live, a, now):
+    """One-time 'checks are running' notice and the daily morning summary."""
+    import os
+    from zoneinfo import ZoneInfo
+    al = cfg.get("alerts", {})
+    url = cfg["account"].get("dashboard_url")
+    changed = False
+    if os.environ.get("GITHUB_EVENT_NAME") == "schedule" and not live.get("schedule_confirmed"):
+        notify.send("Trend Bot: live checks running",
+                    "GitHub has started the automatic checks. Prices and your account now update about "
+                    "every 10 minutes, and the daily trade check runs after the US close.",
+                    "default", "white_check_mark", click=url)
+        live["schedule_confirmed"] = now.strftime("%Y-%m-%dT%H:%M:%SZ")
+        changed = True
+    tz = ZoneInfo(al.get("timezone", "Pacific/Auckland"))
+    local = now.astimezone(tz)
+    hh, mm = (int(x) for x in al.get("summary_time", "07:00").split(":"))
+    due_from = local.replace(hour=hh, minute=mm, second=0, microsecond=0)
+    if (state is not None and due_from <= local < due_from + dt.timedelta(hours=5)
+            and live.get("summary_sent_on") != local.date().isoformat()):
+        title, msg, prio, tags = notify.morning_summary(state, live, cfg, local)
+        notify.send(title, msg, prio, tags, click=url)
+        live["summary_sent_on"] = local.date().isoformat()
+        print("  sent morning summary")
+        changed = True
+    if changed:
+        save_live(live, a.live, a.docs)
+
+
 def main(argv=None):
     p = argparse.ArgumentParser(prog="tradebot", description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -91,7 +120,8 @@ def main(argv=None):
             save_state(state, a.state)
             build(state, cfg, a.docs)
         copy_assets(a.docs)
-        _live(cfg, state, data, a, now)
+        live = _live(cfg, state, data, a, now)
+        _scheduled_notices(cfg, state, live, a, now)
         return 0  # refresh never fails the workflow: problems are reported as alerts instead
     if a.command == "run":
         now = dt.datetime.now(dt.timezone.utc)

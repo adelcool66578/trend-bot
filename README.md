@@ -27,7 +27,7 @@ Open the dashboard in **Safari → File → Add to Dock** (macOS Sonoma or later
 1. Install the **ntfy** app (iPhone/Android) or open ntfy.sh/app in a browser.
 2. Pick a long random topic name, made of random letters and numbers (not a word or your name), and subscribe to it in the app.
 3. In the repo: **Settings → Secrets and variables → Actions → New repository secret**, name `NTFY_TOPIC`, value = your topic.
-You'll get every trade, signal change, warning, halt, a 4% intraday move (once a day) and a daily summary. Anyone who knows the topic name can read it, so keep it random.
+You get every trade, signal change, warning and halt the moment it happens, a 4% move alert (once a day), a 7am NZ morning summary, and a one-time notice when the 10-minute checks start. Anyone who knows the topic name can read it, so keep it random.
 
 ## Run it for the 1-month paper test (recommended: GitHub, free, laptop can be off)
 1. Create a new GitHub repository (public is simplest: GitHub Pages for private repos needs a paid plan. Nothing secret is stored in the repo).

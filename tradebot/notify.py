@@ -4,6 +4,7 @@ Set the NTFY_TOPIC secret to a long random topic name and subscribe to the same
 topic in the ntfy app (iPhone, Android, or the ntfy web app on the Mac).
 With no topic set, alerts are silently skipped.
 """
+import datetime as dt
 import os
 import urllib.request
 
@@ -45,13 +46,36 @@ def daily_messages(state, report, cfg):
         out.append(("Trend Bot: no market data", "Every price source failed. Nothing traded; it retries in 10 minutes.", "high", "warning"))
     elif report.get("warnings"):
         out.append(("Trend Bot: warning", "\n".join(report["warnings"][:5]), "default", "warning"))
-    eq = state.get("equity") or []
-    if eq and not report.get("data_failed"):
-        cur = eq[-1]["total"]
-        prev = eq[-2]["total"] if len(eq) > 1 else state.get("starting_cash", cur)
-        start = state.get("starting_cash") or cfg["account"]["starting_cash"]
-        held = ", ".join(f"{p['symbol']} ${p['value']:,.0f}" for p in state.get("positions_view", [])) or "all cash"
-        out.append(("Trend Bot daily summary",
-                    f"${cur:,.2f} ({cur / prev - 1:+.2%} today, {cur / start - 1:+.2%} since start)\nHolding: {held}",
-                    "low", "bar_chart"))
-    return out
+    return out  # the daily summary is sent separately each morning (morning_summary)
+
+
+def morning_summary(state, live, cfg, now_local):
+    """The 7am summary: account, holdings, what the bot is doing, and whether checks are running."""
+    start = state.get("starting_cash") or cfg["account"]["starting_cash"]
+    eq = live["equity"]
+    pts = [p for p in live.get("intraday", [])]
+    day_ago = (now_local.astimezone(dt.timezone.utc) - dt.timedelta(hours=24)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    recent = [p for p in pts if p["t"] >= day_ago]
+    ch24 = eq / recent[0]["equity"] - 1 if recent else 0.0
+    vals = live.get("values", {})
+    held = ", ".join(f"{s} ${v:,.0f}" for s, v in sorted(vals.items(), key=lambda x: -x[1]) if v > 1)
+    cash = live.get("cash", 0)
+    held = (held + ", " if held else "") + f"cash ${cash:,.0f}"
+    sig = state.get("signals", {}) or {}
+    nq = sig.get("nasdaq", {}) or {}
+    ql = live.get("nasdaq_live") or {}
+    lines = [f"${eq:,.2f}  ({ch24:+.2%} 24h, {eq / start - 1:+.2%} since start)",
+             f"Holding: {held}"]
+    if nq.get("holding"):
+        gap = ql.get("gap", nq.get("gap"))
+        lines.append(f"Nasdaq: QQQ {gap:+.1%} vs 200-day avg -> {nq['holding']}")
+    cs = sig.get("crypto", {}) or {}
+    if cs:
+        lines.append("Crypto trend: " + ", ".join(
+            f"{s} {round((d.get('score') or 0) * 3)}/3" for s, d in cs.items()))
+    if state.get("pending_stock"):
+        lines.append(f"Pending: switch to {state['pending_stock']['to']} next trading day")
+    lines.append(f"Checks in last 24h: {len(recent)} (about 144 expected)")
+    if state.get("halted"):
+        lines.append("HALTED: " + (state.get("halt_reason") or ""))
+    return ("Trend Bot morning summary", "\n".join(lines), "default", "sunrise")

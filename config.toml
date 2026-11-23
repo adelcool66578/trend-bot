@@ -9,6 +9,8 @@ dashboard_url = "https://adelcool66578.github.io/trend-bot/"
 
 [alerts]
 intraday_move = 0.04         # alert (once a day) if the account moves 4% between daily runs
+summary_time = "07:00"       # morning summary notification, local time below
+timezone = "Pacific/Auckland"
 
 [allocation]
 crypto = 0.5                 # share of the account in the crypto sleeve
