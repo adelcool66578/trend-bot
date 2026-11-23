@@ -238,7 +238,7 @@ function drawChart(el) {
   let g = '<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="'+esc(o.label||"chart")+'">';
   for (let k = 0; k <= 4; k++) { const v = lo + (hi - lo) * k / 4, y = Y(v);
     g += '<line x1="'+L0+'" x2="'+(W-R0)+'" y1="'+y+'" y2="'+y+'" stroke="var(--line)"/><text x="'+(L0-6)+'" y="'+(y+4)+'" text-anchor="end" font-size="11" fill="var(--muted)">'+fmt(v)+'</text>'; }
-  const nt = Math.max(2, Math.min(6, Math.floor((W - L0 - R0) / 90)));
+  const nt = Math.max(2, Math.min(6, n, Math.floor((W - L0 - R0) / 90)));
   for (let k = 0; k < nt; k++) { const i = Math.round((n - 1) * k / (nt - 1));
     g += '<text x="'+X(i)+'" y="'+(H-6)+'" text-anchor="'+(k===0?"start":k===nt-1?"end":"middle")+'" font-size="11" fill="var(--muted)">'+esc((o.xfmt||(s=>s))(o.x[i]))+'</text>'; }
   (o.hlines || []).forEach(h => { if (h.v < lo || h.v > hi) return; const y = Y(h.v);
