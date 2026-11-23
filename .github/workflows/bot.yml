@@ -6,7 +6,13 @@ on:
     # The daily trade check runs on the first of these after 21:30 UTC (after the US close),
     # and any later check catches up if that one was missed.
     - cron: "*/10 * * * *"
-  workflow_dispatch: {}        # "Run workflow" button for a manual check
+  workflow_dispatch:           # "Run workflow" button for a manual check
+    inputs:
+      command:
+        description: "What to run"
+        type: choice
+        options: [refresh, test-alert]
+        default: refresh
 
 permissions:
   contents: write              # lets the bot commit its state and dashboard
@@ -34,7 +40,7 @@ jobs:
           ALPACA_KEY_ID: ${{ secrets.ALPACA_KEY_ID }}
           ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
-        run: python -m tradebot refresh
+        run: python -m tradebot ${{ inputs.command || 'refresh' }}
 
       - name: Save state and dashboard
         run: |
