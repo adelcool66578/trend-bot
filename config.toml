@@ -1,0 +1,43 @@
+# Trend Bot - aggressive combo (paper trading first)
+# 50% crypto trend (BTC/ETH) + 50% 2x Nasdaq trend (QLD, safe asset SHY)
+
+[account]
+starting_cash = 10000.0      # paper money, USD
+broker = "paper"             # "paper" = built-in simulator, "alpaca" = Alpaca paper account
+paper_test_days = 30         # length of the paper trial shown on the dashboard
+
+[allocation]
+crypto = 0.5                 # share of the account in the crypto sleeve
+nasdaq = 0.5                 # share of the account in the Nasdaq sleeve
+rebalance_band = 0.02        # skip the monthly 50/50 reset if both sleeves are within 2%
+
+[crypto]
+symbols = ["BTC", "ETH"]
+lookbacks = [20, 60, 120]    # trend score = share of these day-lookbacks with a positive return
+vol_window = 30              # days of returns used to measure volatility
+vol_target = 0.50            # target annual volatility per coin (position = 0.50 / coin vol)
+max_exposure = 1.0           # never hold more than 100% of the sleeve (no leverage)
+rebalance_weekday = 0        # 0 = Monday (UTC)
+band = 0.05                  # skip adjustments smaller than 5% of the sleeve
+fee = 0.0025                 # 0.25% exchange fee per trade
+slippage = 0.0010            # 0.10% assumed slippage per trade
+max_data_age_days = 3
+
+[nasdaq]
+signal_symbol = "QQQ"        # trend measured on the Nasdaq-100
+risk_on = "QLD"              # 2x Nasdaq-100 ETF held when QQQ is above its average
+risk_off = "SHY"             # short-term Treasuries held otherwise
+sma_days = 200
+fee_per_share = 0.0035       # IBKR-style commission
+min_fee = 0.35
+slippage = 0.0005
+max_data_age_days = 5
+
+[safety]
+max_drawdown_halt = 0.55     # stop trading if the account falls 55% below its peak
+max_order_fraction = 1.05    # refuse any single order larger than 105% of the account
+
+[reference]                  # backtest results shown on the dashboard (Jan 2018 - May 2026, after fees)
+cagr = 0.319
+max_drawdown = -0.432
+sharpe = 1.14

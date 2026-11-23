@@ -1,0 +1,50 @@
+name: Trend Bot daily run
+
+on:
+  schedule:
+    # 21:45 UTC = after the US close all year (10:45am NZ in summer). The second run is a
+    # retry: the bot skips itself if today's run already succeeded.
+    - cron: "45 21 * * *"
+    - cron: "30 23 * * *"
+  workflow_dispatch: {}        # "Run workflow" button for a manual run
+
+permissions:
+  contents: write              # lets the bot commit its state and dashboard
+
+concurrency:
+  group: trend-bot
+  cancel-in-progress: false    # never run two cycles at once
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Self-test (stops here if anything is broken)
+        run: python -m unittest discover -s tests
+
+      - name: Run today's cycle
+        id: bot
+        continue-on-error: true
+        env:
+          ALPACA_KEY_ID: ${{ secrets.ALPACA_KEY_ID }}
+          ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
+        run: python -m tradebot run
+
+      - name: Save state and dashboard
+        run: |
+          git config user.name "trend-bot"
+          git config user.email "trend-bot@users.noreply.github.com"
+          git add state docs
+          git diff --cached --quiet || git commit -m "Bot run $(date -u +%Y-%m-%d)"
+          git push
+
+      - name: Fail loudly if the run had a problem (GitHub emails you)
+        if: steps.bot.outcome != 'success'
+        run: exit 1

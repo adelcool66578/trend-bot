@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Runs the bot every day at 11:00 local NZ time (after the US close).
+     If the Mac is asleep at 11:00, macOS runs it when it wakes.
+     Edit the path below to where you put the tradebot folder, then:
+       cp scripts/com.trendbot.daily.plist ~/Library/LaunchAgents/
+       launchctl load ~/Library/LaunchAgents/com.trendbot.daily.plist -->
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.trendbot.daily</string>
+  <key>ProgramArguments</key>
+  <array><string>/bin/bash</string><string>/Users/YOUR_NAME/tradebot/scripts/run_daily_mac.sh</string></array>
+  <key>StartCalendarInterval</key>
+  <array>
+    <dict><key>Hour</key><integer>11</integer><key>Minute</key><integer>0</integer></dict>
+    <dict><key>Hour</key><integer>14</integer><key>Minute</key><integer>0</integer></dict>
+  </array>
+  <key>StandardErrorPath</key><string>/tmp/trendbot.err</string>
+</dict>
+</plist>

@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trend Bot</title>
+<style>
+:root{
+  --bg:#f6f7f9;--panel:#ffffff;--ink:#14171c;--muted:#5d6673;--line:#e3e6eb;--soft:#f0f2f5;
+  --accent:#2457d6;--good:#14834a;--bad:#c4302b;--warn:#a86400;
+  --crypto:#e08a00;--nasdaq:#2457d6;--cash:#9aa3af;--qqq:#7a5af8;--btc:#d97706;
+  --radius:12px;--shadow:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.08);
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#0f1216;--panel:#171b21;--ink:#e8ebef;--muted:#9aa4b2;--line:#272d36;--soft:#1e232b;
+  --accent:#6b93ff;--good:#3fbf7f;--bad:#f2665f;--warn:#e0a33a;--nasdaq:#6b93ff;--qqq:#a08bff;--shadow:none}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:var(--accent)}
+.wrap{max-width:1180px;margin:0 auto;padding:0 20px}
+header{background:var(--panel);border-bottom:1px solid var(--line)}
+.top{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:16px 0 12px}
+.brand{font-weight:700;font-size:19px;letter-spacing:-.01em;display:flex;align-items:center;gap:10px}
+.logo{width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,var(--crypto),var(--nasdaq));display:inline-block}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;font-size:12.5px;font-weight:600;background:var(--soft);color:var(--muted)}
+.pill .dot{width:8px;height:8px;border-radius:50%;background:currentColor}
+.pill.ok{color:var(--good)}.pill.bad{color:var(--bad)}.pill.warn{color:var(--warn)}
+.meta{color:var(--muted);font-size:13px;margin-left:auto;text-align:right}
+.progress{height:6px;background:var(--soft);border-radius:99px;overflow:hidden;width:180px;display:inline-block;vertical-align:middle;margin-left:8px}
+.progress>i{display:block;height:100%;background:var(--accent)}
+nav{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none}
+nav::-webkit-scrollbar{display:none}
+nav a{padding:10px 14px;text-decoration:none;color:var(--muted);font-weight:600;font-size:14px;border-bottom:2px solid transparent;white-space:nowrap}
+nav a:hover{color:var(--ink)}
+nav a.on{color:var(--ink);border-color:var(--accent)}
+@media (max-width:600px){nav{flex-wrap:wrap;gap:0}nav a{padding:8px 10px;font-size:13.5px}}
+main{padding:22px 0 60px}
+section{display:none}section.on{display:block}
+h2{font-size:17px;margin:0 0 12px;letter-spacing:-.01em}
+h3{font-size:14px;margin:0 0 8px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.grid{display:grid;gap:14px}
+.kpis{grid-template-columns:repeat(auto-fit,minmax(190px,1fr));margin-bottom:14px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px;box-shadow:var(--shadow)}
+.kpi .label{color:var(--muted);font-size:13px}
+.kpi .val{font-size:26px;font-weight:700;letter-spacing:-.02em;margin-top:2px;font-variant-numeric:tabular-nums}
+.kpi .sub{font-size:13px;color:var(--muted);margin-top:2px}
+.up{color:var(--good)}.down{color:var(--bad)}
+.two{grid-template-columns:2fr 1fr}
+@media (max-width:860px){.two{grid-template-columns:1fr}.meta{margin-left:0;text-align:left}}
+.chart-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+.chart-head h2{margin:0;margin-right:auto}
+.seg{display:inline-flex;background:var(--soft);border-radius:8px;padding:2px}
+.seg button{border:0;background:transparent;color:var(--muted);font:600 12.5px inherit;font-family:inherit;padding:5px 10px;border-radius:6px;cursor:pointer}
+.seg button.on{background:var(--panel);color:var(--ink);box-shadow:var(--shadow)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--muted)}
+.legend label{display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none}
+.legend i{width:12px;height:3px;border-radius:2px;display:inline-block}
+.chart{position:relative;height:300px}
+.chart svg{width:100%;height:100%;display:block}
+.tip{position:absolute;pointer-events:none;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:12.5px;box-shadow:var(--shadow);display:none;white-space:nowrap;z-index:2}
+.now p{margin:0 0 10px}
+.now .row{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--line)}
+.now .row:first-of-type{border-top:0;padding-top:0}
+.badge{display:inline-block;padding:1px 8px;border-radius:6px;font-size:12px;font-weight:700}
+.b-crypto{background:color-mix(in srgb,var(--crypto) 16%,transparent);color:var(--crypto)}
+.b-nasdaq{background:color-mix(in srgb,var(--nasdaq) 16%,transparent);color:var(--nasdaq)}
+.b-buy{background:color-mix(in srgb,var(--good) 15%,transparent);color:var(--good)}
+.b-sell{background:color-mix(in srgb,var(--bad) 15%,transparent);color:var(--bad)}
+.split{display:flex;height:12px;border-radius:99px;overflow:hidden;background:var(--soft);margin:8px 0}
+.split i{display:block;height:100%}
+.split-legend{display:flex;gap:14px;font-size:13px;color:var(--muted);flex-wrap:wrap}
+.split-legend b{color:var(--ink)}
+table{width:100%;border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums}
+th{text-align:left;color:var(--muted);font-weight:600;font-size:12.5px;text-transform:uppercase;letter-spacing:.03em;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:10px;border-bottom:1px solid var(--line);white-space:nowrap}
+td.num,th.num{text-align:right}
+tr:last-child td{border-bottom:0}
+.tablewrap{overflow-x:auto}
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.toolbar input,.toolbar select{font:inherit;font-size:14px;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink)}
+.toolbar .count{margin-left:auto;color:var(--muted);font-size:13px}
+.sig{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+.dots{display:flex;gap:8px;margin:8px 0}
+.dots span{flex:1;text-align:center;padding:6px 0;border-radius:8px;font-size:12.5px;font-weight:600;background:var(--soft);color:var(--muted)}
+.dots span.yes{background:color-mix(in srgb,var(--good) 15%,transparent);color:var(--good)}
+.dots span.no{background:color-mix(in srgb,var(--bad) 12%,transparent);color:var(--bad)}
+.bar{height:8px;background:var(--soft);border-radius:99px;position:relative;margin:6px 0 2px}
+.bar i{position:absolute;left:0;top:0;bottom:0;border-radius:99px}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:14px}
+.kv dt{color:var(--muted)}.kv dd{margin:0;text-align:right;font-variant-numeric:tabular-nums}
+.gauge{position:relative;height:36px;margin:14px 0 6px}
+.gauge .track{position:absolute;top:15px;left:0;right:0;height:6px;border-radius:99px;background:linear-gradient(90deg,var(--bad),var(--soft) 50%,var(--good))}
+.gauge .mid{position:absolute;left:50%;top:6px;width:2px;height:24px;background:var(--muted)}
+.gauge .needle{position:absolute;top:8px;width:14px;height:20px;margin-left:-7px;border-radius:4px;background:var(--ink)}
+.small{font-size:13px;color:var(--muted)}
+.ev{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:14px}
+.ev:last-child{border-bottom:0}
+.ev .d{color:var(--muted);width:92px;flex:none;font-variant-numeric:tabular-nums}
+.ev .lv{width:62px;flex:none}
+.lv-error{color:var(--bad);font-weight:700}.lv-warn{color:var(--warn);font-weight:700}.lv-trade,.lv-signal{color:var(--accent);font-weight:700}.lv-info,.lv-run{color:var(--muted)}
+.banner{border-radius:var(--radius);padding:12px 16px;margin-bottom:14px;font-weight:600}
+.banner.bad{background:color-mix(in srgb,var(--bad) 14%,transparent);color:var(--bad)}
+.banner.warn{background:color-mix(in srgb,var(--warn) 14%,transparent);color:var(--warn)}
+.empty{color:var(--muted);text-align:center;padding:30px}
+.checklist li{margin:6px 0}
+.about p,.about li{max-width:780px}
+footer{color:var(--muted);font-size:12.5px;text-align:center;padding:20px}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="top">
+      <div class="brand"><span class="logo"></span>Trend Bot</div>
+      <span id="status" class="pill"><span class="dot"></span><span>Loading</span></span>
+      <span id="broker" class="pill"></span>
+      <div class="meta"><div id="lastrun"></div><div id="trial"></div></div>
+    </div>
+    <nav id="nav">
+      <a href="#overview">Overview</a><a href="#positions">Positions</a><a href="#trades">Trades</a>
+      <a href="#signals">Signals</a><a href="#activity">Activity</a><a href="#about">How it works</a>
+    </nav>
+  </div>
+</header>
+<main class="wrap">
+  <div id="banners"></div>
+
+  <section id="overview">
+    <div class="grid kpis" id="kpis"></div>
+    <div class="grid two">
+      <div class="card">
+        <div class="chart-head">
+          <h2>Account value</h2>
+          <div class="seg" id="range"><button data-r="30">1M</button><button data-r="90">3M</button><button data-r="0" class="on">All</button></div>
+        </div>
+        <div class="legend" id="legend"></div>
+        <div class="chart" id="chart"><div class="tip" id="tip"></div></div>
+      </div>
+      <div class="card now" id="now"></div>
+    </div>
+    <div class="card" style="margin-top:14px">
+      <h2>Where the money is</h2>
+      <div class="split" id="split"></div>
+      <div class="split-legend" id="splitlegend"></div>
+    </div>
+  </section>
+
+  <section id="positions">
+    <div class="card">
+      <h2>Current positions</h2>
+      <div class="tablewrap"><table id="postable"></table></div>
+      <p class="small" style="margin-top:12px">Profit is measured against the average price paid including fees. Cash sits in each sleeve until the bot needs it.</p>
+    </div>
+  </section>
+
+  <section id="trades">
+    <div class="card">
+      <h2>Trade history</h2>
+      <div class="toolbar">
+        <select id="f-sleeve"><option value="">All sleeves</option><option value="crypto">Crypto</option><option value="nasdaq">Nasdaq</option></select>
+        <select id="f-side"><option value="">Buys and sells</option><option value="buy">Buys</option><option value="sell">Sells</option></select>
+        <input id="f-q" type="search" placeholder="Search symbol or reason">
+        <span class="count" id="tcount"></span>
+      </div>
+      <div class="tablewrap"><table id="tradetable"></table></div>
+    </div>
+  </section>
+
+  <section id="signals">
+    <div class="grid sig" id="sigcards"></div>
+  </section>
+
+  <section id="activity">
+    <div class="grid two">
+      <div class="card"><h2>Bot log</h2><div id="events"></div></div>
+      <div class="card"><h2>Data sources (last run)</h2><div id="datalog" class="small"></div>
+        <h2 style="margin-top:18px">Health checks</h2><div id="health"></div></div>
+    </div>
+  </section>
+
+  <section id="about" class="about">
+    <div class="grid two">
+      <div class="card" id="rules"></div>
+      <div class="card" id="refcard"></div>
+    </div>
+  </section>
+</main>
+<footer>Paper trading: no real money. Backtests are not promises. <span id="gen"></span></footer>
+
+<script src="data.js"></script>
+<script>
+(function(){
+"use strict";
+const D = window.BOT_DATA;
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
+const money = (v, d=2) => v == null || isNaN(v) ? "–" : (v < 0 ? "-$" : "$") + Math.abs(v).toLocaleString(undefined,{minimumFractionDigits:d,maximumFractionDigits:d});
+const pct = (v, d=1, sign=true) => v == null || isNaN(v) ? "–" : (sign && v > 0 ? "+" : "") + (v*100).toFixed(d) + "%";
+const cls = v => v > 0 ? "up" : v < 0 ? "down" : "";
+const fmtQty = q => Math.abs(q) >= 100 ? q.toFixed(2) : Math.abs(q) >= 1 ? q.toFixed(4) : q.toPrecision(4);
+const NAMES = {BTC:"Bitcoin",ETH:"Ethereum",QLD:"2x Nasdaq-100 ETF",SHY:"Short-term Treasuries",QQQ:"Nasdaq-100"};
+
+if (!D) {
+  document.querySelector("main").innerHTML = '<div class="card empty">No data yet. The dashboard fills in after the bot\'s first run (<code>python -m tradebot run</code>).</div>';
+  $("#status").innerHTML = '<span class="dot"></span><span>Not started</span>';
+  return;
+}
+const S = D.state, C = D.config, EQ = S.equity || [], T = D.trades || [];
+const start = C.starting_cash, last = EQ[EQ.length-1] || {total:start};
+
+/* ---------- header ---------- */
+(function header(){
+  const st = $("#status");
+  const daysSince = S.last_run ? Math.round((Date.now() - Date.parse(S.last_run+"T00:00:00Z"))/864e5) : null;
+  let label = "Running", c = "ok";
+  if (S.halted) { label = "Halted"; c = "bad"; }
+  else if (D.demo) { label = "Demo replay"; c = "warn"; }
+  else if (daysSince != null && daysSince > 2) { label = "No run for " + daysSince + " days"; c = "warn"; }
+  st.className = "pill " + c; st.innerHTML = '<span class="dot"></span><span>' + label + '</span>';
+  $("#broker").textContent = C.broker === "alpaca" ? "Alpaca paper account" : "Paper trading";
+  $("#lastrun").textContent = "Last run " + (S.last_run || "–") + " · updated " + D.generated;
+  const day = S.start_date && S.last_run ? Math.round((Date.parse(S.last_run) - Date.parse(S.start_date))/864e5) + 1 : 0;
+  const p = Math.min(1, day / C.paper_test_days);
+  $("#trial").innerHTML = (day > C.paper_test_days ? "Paper trial complete (day " + day + ")" : "Paper trial day " + day + " of " + C.paper_test_days) +
+    '<span class="progress"><i style="width:' + (p*100) + '%"></i></span>';
+  $("#gen").textContent = "Generated " + D.generated + ".";
+  const b = [];
+  if (D.demo) b.push('<div class="banner warn">' + esc(D.demo) + '</div>');
+  if (S.halted) b.push('<div class="banner bad">Trading is halted: ' + esc(S.halt_reason) + '. Review, then run <code>python -m tradebot resume</code>.</div>');
+  if (!D.demo && daysSince != null && daysSince > 2 && !S.halted) b.push('<div class="banner warn">The bot hasn\'t run for ' + daysSince + ' days. Check the scheduler.</div>');
+  const sig = S.signals || {};
+  if (sig.crypto_ok === false || sig.nasdaq_ok === false) b.push('<div class="banner warn">Some market data was missing or stale on the last run, so part of the bot skipped trading. See Activity.</div>');
+  $("#banners").innerHTML = b.join("");
+})();
+
+/* ---------- KPIs ---------- */
+(function kpis(){
+  const ret = last.total/start - 1;
+  const prev = EQ.length > 1 ? EQ[EQ.length-2].total : start;
+  const day = last.total/prev - 1;
+  let peak = start, mdd = 0;
+  EQ.forEach(p => { peak = Math.max(peak, p.total); mdd = Math.min(mdd, p.total/peak - 1); });
+  const cur = last.total / Math.max(peak, last.total) - 1;
+  const q = last.bench_qqq ? last.bench_qqq/start - 1 : null, b = last.bench_btc ? last.bench_btc/start - 1 : null;
+  const cards = [
+    ["Account value", money(last.total), '<span class="'+cls(ret)+'">'+pct(ret,2)+'</span> since start ('+money(start,0)+')'],
+    ["Last day", '<span class="'+cls(day)+'">'+pct(day,2)+'</span>', money(last.total-prev)+" change"],
+    ["vs holding QQQ", q==null?"–":'<span class="'+cls(ret-q)+'">'+pct(ret-q,1)+'</span>', "QQQ alone: "+pct(q,1)],
+    ["vs holding Bitcoin", b==null?"–":'<span class="'+cls(ret-b)+'">'+pct(ret-b,1)+'</span>', "Bitcoin alone: "+pct(b,1)],
+    ["Drop from peak", '<span class="'+cls(cur)+'">'+pct(cur,1,false)+'</span>', "Worst so far "+pct(mdd,1,false)+" · safety stop at -"+(C.halt_at*100).toFixed(0)+"%"],
+  ];
+  $("#kpis").innerHTML = cards.map(c => '<div class="card kpi"><div class="label">'+c[0]+'</div><div class="val">'+c[1]+'</div><div class="sub">'+c[2]+'</div></div>').join("");
+})();
+
+/* ---------- chart ---------- */
+const SERIES = [
+  {key:"total", name:"Trend Bot", color:"var(--ink)", on:true, w:2.4},
+  {key:"bench_qqq", name:"Hold QQQ", color:"var(--qqq)", on:true, w:1.6},
+  {key:"bench_btc", name:"Hold Bitcoin", color:"var(--btc)", on:false, w:1.6},
+  {key:"crypto", name:"Crypto sleeve", color:"var(--crypto)", on:false, w:1.4, dash:"4 3"},
+  {key:"nasdaq", name:"Nasdaq sleeve", color:"var(--nasdaq)", on:false, w:1.4, dash:"4 3"},
+];
+let RANGE = 0;
+$("#legend").innerHTML = SERIES.map((s,i) => '<label><input type="checkbox" data-i="'+i+'"'+(s.on?" checked":"")+'> <i style="background:'+s.color+'"></i>'+s.name+'</label>').join("");
+$("#legend").addEventListener("change", e => { SERIES[+e.target.dataset.i].on = e.target.checked; draw(); });
+$("#range").addEventListener("click", e => { if (!e.target.dataset.r) return; RANGE = +e.target.dataset.r;
+  [...$("#range").children].forEach(b => b.classList.toggle("on", b === e.target)); draw(); });
+
+function draw(){
+  const box = $("#chart"), tip = $("#tip");
+  box.querySelectorAll("svg,.empty").forEach(n => n.remove());
+  let pts = EQ.slice();
+  if (RANGE && pts.length) { const cut = Date.parse(pts[pts.length-1].date) - RANGE*864e5; pts = pts.filter(p => Date.parse(p.date) >= cut); }
+  if (pts.length < 2) { box.insertAdjacentHTML("beforeend", '<div class="empty">The chart appears after the second daily run.</div>'); return; }
+  const W = box.clientWidth, H = box.clientHeight, L = 62, R = 12, Tp = 10, B = 26;
+  const act = SERIES.filter(s => s.on);
+  let lo = Infinity, hi = -Infinity;
+  pts.forEach(p => act.forEach(s => { const v = p[s.key]; if (v != null) { lo = Math.min(lo, v); hi = Math.max(hi, v); } }));
+  if (!isFinite(lo)) { lo = start*0.9; hi = start*1.1; }
+  const pad = (hi - lo) * 0.08 || hi * 0.02; lo -= pad; hi += pad;
+  const x = i => L + (W - L - R) * i / (pts.length - 1), y = v => Tp + (H - Tp - B) * (1 - (v - lo) / (hi - lo));
+  let svg = '<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Account value chart">';
+  for (let k = 0; k <= 4; k++) { const v = lo + (hi-lo)*k/4, yy = y(v);
+    svg += '<line x1="'+L+'" x2="'+(W-R)+'" y1="'+yy+'" y2="'+yy+'" stroke="var(--line)"/>' +
+           '<text x="'+(L-8)+'" y="'+(yy+4)+'" text-anchor="end" font-size="11" fill="var(--muted)">'+money(v,0)+'</text>'; }
+  const ticks = Math.max(2, Math.min(6, pts.length, Math.floor((W - L - R) / 80)));
+  for (let k = 0; k < ticks; k++) { const i = Math.round((pts.length-1)*k/Math.max(1,ticks-1));
+    svg += '<text x="'+x(i)+'" y="'+(H-6)+'" text-anchor="'+(k===0?"start":k===ticks-1?"end":"middle")+'" font-size="11" fill="var(--muted)">'+pts[i].date.slice(5)+'</text>'; }
+  const sy = y(start);
+  if (start >= lo && start <= hi) svg += '<line x1="'+L+'" x2="'+(W-R)+'" y1="'+sy+'" y2="'+sy+'" stroke="var(--muted)" stroke-dasharray="2 4"/>';
+  act.slice().reverse().forEach(s => {
+    let d = "", pen = false;
+    pts.forEach((p,i) => { const v = p[s.key]; if (v == null) { pen = false; return; } d += (pen?"L":"M") + x(i).toFixed(1) + " " + y(v).toFixed(1); pen = true; });
+    svg += '<path d="'+d+'" fill="none" stroke="'+s.color+'" stroke-width="'+s.w+'"'+(s.dash?' stroke-dasharray="'+s.dash+'"':'')+' stroke-linejoin="round"/>';
+  });
+  svg += '<line id="xh" y1="'+Tp+'" y2="'+(H-B)+'" stroke="var(--muted)" stroke-width="1" visibility="hidden"/></svg>';
+  box.insertAdjacentHTML("afterbegin", svg);
+  const el = box.querySelector("svg"), xh = el.querySelector("#xh");
+  el.addEventListener("mousemove", ev => {
+    const r = el.getBoundingClientRect(), mx = (ev.clientX - r.left) * W / r.width;
+    const i = Math.max(0, Math.min(pts.length-1, Math.round((mx - L) / (W - L - R) * (pts.length-1)))), p = pts[i];
+    xh.setAttribute("x1", x(i)); xh.setAttribute("x2", x(i)); xh.setAttribute("visibility", "visible");
+    tip.innerHTML = '<b>'+p.date+'</b><br>' + act.map(s => p[s.key]==null?"":'<span style="color:'+s.color+'">●</span> '+s.name+': '+money(p[s.key])+' <span class="'+cls(p[s.key]/start-1)+'">('+pct(p[s.key]/start-1)+')</span>').filter(Boolean).join("<br>");
+    tip.style.display = "block";
+    const tx = x(i) * r.width / W; tip.style.left = Math.min(r.width - tip.offsetWidth - 4, Math.max(0, tx + 12)) + "px"; tip.style.top = "8px";
+  });
+  el.addEventListener("mouseleave", () => { tip.style.display = "none"; xh.setAttribute("visibility","hidden"); });
+}
+window.addEventListener("resize", () => { if ($("#overview").classList.contains("on")) draw(); });
+
+/* ---------- now box + split ---------- */
+(function now(){
+  const sg = S.signals || {}, nq = sg.nasdaq || {}, cr = sg.crypto || {};
+  const pv = S.positions_view || [];
+  const val = s => (pv.find(p => p.symbol === s) || {}).value || 0;
+  const tot = last.total || 1;
+  const rows = [];
+  if (nq.holding) {
+    const up = nq.holding === C.nasdaq.risk_on;
+    rows.push('<div class="row"><span class="badge b-nasdaq">Nasdaq</span><div>'+(up
+      ? 'Trend is <b class="up">up</b>: QQQ is '+pct(nq.gap)+' vs its '+C.nasdaq.sma_days+'-day average, so the sleeve holds <b>'+C.nasdaq.risk_on+'</b> (2x Nasdaq).'
+      : 'Trend is <b class="down">down</b>: QQQ is '+pct(nq.gap)+' vs its '+C.nasdaq.sma_days+'-day average, so the sleeve sits in <b>'+C.nasdaq.risk_off+'</b> (Treasuries).')+'</div></div>');
+  }
+  const coins = C.crypto.symbols.map(s => s + " " + pct(val(s)/((last.crypto)||1),0,false)).join(", ");
+  rows.push('<div class="row"><span class="badge b-crypto">Crypto</span><div>Sleeve is '+coins+', the rest in cash. '+
+    C.crypto.symbols.map(s => cr[s] && cr[s].score!=null ? s+' trend '+Math.round(cr[s].score*3)+'/3' : '').filter(Boolean).join(" · ")+'</div></div>');
+  const next = [];
+  if (S.pending_stock) next.push('<b>Next trading day:</b> switch Nasdaq sleeve to '+esc(S.pending_stock.to));
+  if (sg.next_crypto_rebalance) next.push('<b>'+esc(sg.next_crypto_rebalance)+':</b> weekly crypto check');
+  if (sg.next_month_rebalance) next.push('<b>'+esc(sg.next_month_rebalance)+':</b> monthly reset to 50/50');
+  rows.push('<div class="row"><span class="badge" style="background:var(--soft)">Next</span><div>'+next.join("<br>")+'</div></div>');
+  $("#now").innerHTML = '<h2>What the bot is doing</h2>' + rows.join("");
+
+  const parts = [];
+  C.crypto.symbols.forEach((s,i) => parts.push([s, val(s), i ? "color-mix(in srgb,var(--crypto) 60%,var(--panel))" : "var(--crypto)"]));
+  [C.nasdaq.risk_on, C.nasdaq.risk_off].forEach((s,i) => parts.push([s, val(s), i ? "color-mix(in srgb,var(--nasdaq) 55%,var(--panel))" : "var(--nasdaq)"]));
+  parts.push(["Cash", last.cash || 0, "var(--cash)"]);
+  $("#split").innerHTML = parts.filter(p => p[1] > 0).map(p => '<i title="'+p[0]+'" style="width:'+(p[1]/tot*100)+'%;background:'+p[2]+'"></i>').join("");
+  $("#splitlegend").innerHTML = parts.map(p => '<span><span class="badge" style="background:'+p[2]+';width:10px;height:10px;padding:0;border-radius:3px;vertical-align:-1px"></span> '+p[0]+' <b>'+pct(p[1]/tot,1,false)+'</b> '+money(p[1],0)+'</span>').join("") +
+    '<span style="margin-left:auto">Crypto sleeve <b>'+money(last.crypto,0)+'</b> · Nasdaq sleeve <b>'+money(last.nasdaq,0)+'</b></span>';
+})();
+
+/* ---------- positions ---------- */
+(function positions(){
+  const pv = (S.positions_view || []).slice().sort((a,b) => b.value - a.value);
+  const tot = last.total || 1;
+  let h = '<tr><th>Asset</th><th>Sleeve</th><th class="num">Quantity</th><th class="num">Price</th><th class="num">Value</th><th class="num">% of account</th><th class="num">Avg cost</th><th class="num">Profit</th></tr>';
+  if (!pv.length) h += '<tr><td colspan="8" class="empty">No positions yet.</td></tr>';
+  pv.forEach(p => {
+    const pnl = p.avg_cost ? (p.price - p.avg_cost) * p.qty : null, pr = p.avg_cost ? p.price/p.avg_cost - 1 : null;
+    h += '<tr><td><b>'+esc(p.symbol)+'</b> <span class="small">'+esc(NAMES[p.symbol]||"")+'</span></td><td><span class="badge b-'+p.sleeve+'">'+p.sleeve+'</span></td>' +
+      '<td class="num">'+fmtQty(p.qty)+'</td><td class="num">'+money(p.price)+'</td><td class="num"><b>'+money(p.value)+'</b></td>' +
+      '<td class="num">'+pct(p.value/tot,1,false)+'</td><td class="num">'+money(p.avg_cost)+'</td>' +
+      '<td class="num '+cls(pnl)+'">'+(pnl==null?"–":money(pnl)+' ('+pct(pr)+')')+'</td></tr>';
+  });
+  const sc = S.sleeve_cash || {};
+  ["crypto","nasdaq"].forEach(k => { if ((sc[k]||0) > 0.5) h += '<tr><td><b>Cash</b></td><td><span class="badge b-'+k+'">'+k+'</span></td><td></td><td></td><td class="num">'+money(sc[k])+'</td><td class="num">'+pct(sc[k]/tot,1,false)+'</td><td></td><td></td></tr>'; });
+  $("#postable").innerHTML = h;
+})();
+
+/* ---------- trades ---------- */
+function trades(){
+  const sl = $("#f-sleeve").value, sd = $("#f-side").value, q = $("#f-q").value.trim().toLowerCase();
+  const rows = T.slice().reverse().filter(t => (!sl || t.sleeve === sl) && (!sd || t.side === sd) &&
+    (!q || (t.symbol + " " + t.reason).toLowerCase().includes(q)));
+  let h = '<tr><th>Date</th><th>Side</th><th>Asset</th><th class="num">Quantity</th><th class="num">Price</th><th class="num">Value</th><th class="num">Fee</th><th>Why</th></tr>';
+  if (!rows.length) h += '<tr><td colspan="8" class="empty">No trades match.</td></tr>';
+  rows.slice(0, 500).forEach(t => {
+    h += '<tr><td>'+esc(t.time)+'</td><td><span class="badge b-'+t.side+'">'+t.side.toUpperCase()+'</span></td><td><b>'+esc(t.symbol)+'</b> <span class="badge b-'+t.sleeve+'">'+t.sleeve+'</span></td>' +
+      '<td class="num">'+fmtQty(t.qty)+'</td><td class="num">'+money(t.price)+'</td><td class="num">'+money(t.notional)+'</td><td class="num">'+money(t.fee)+'</td><td>'+esc(t.reason)+(t.status && t.status!=="filled"?' <span class="small">('+esc(t.status)+')</span>':'')+'</td></tr>';
+  });
+  $("#tradetable").innerHTML = h;
+  const fees = rows.reduce((a,t) => a + (t.fee||0), 0);
+  $("#tcount").textContent = rows.length + " trades · " + money(fees) + " in fees";
+}
+["#f-sleeve","#f-side","#f-q"].forEach(s => $(s).addEventListener("input", trades));
+trades();
+
+/* ---------- signals ---------- */
+(function signals(){
+  const sg = S.signals || {}, cr = sg.crypto || {}, nq = sg.nasdaq || {};
+  const pv = S.positions_view || [];
+  let h = "";
+  C.crypto.symbols.forEach(s => {
+    const d = cr[s] || {}, cur = ((pv.find(p => p.symbol === s) || {}).value || 0) / (last.crypto || 1);
+    const r = d.returns || {};
+    h += '<div class="card"><h3><span class="badge b-crypto">Crypto</span> '+s+' · '+(NAMES[s]||"")+'</h3>' +
+      '<div class="small">Trend score: is the price higher than it was…</div><div class="dots">' +
+      C.crypto.lookbacks.map(lb => { const v = r[lb]; return '<span class="'+(v==null?"":v>0?"yes":"no")+'">'+lb+' days ago<br>'+pct(v,1)+'</span>'; }).join("") + '</div>' +
+      '<dl class="kv"><dt>Trend score</dt><dd><b>'+(d.score==null?"–":Math.round(d.score*3)+" / 3")+'</b></dd>' +
+      '<dt>Volatility (annual)</dt><dd>'+pct(d.vol,0,false)+'</dd>' +
+      '<dt>Target share of sleeve</dt><dd><b>'+pct(d.target,1,false)+'</b></dd>' +
+      '<dt>Current share of sleeve</dt><dd>'+pct(cur,1,false)+'</dd></dl>' +
+      '<div class="bar"><i style="width:'+Math.min(100,(d.target||0)*100)+'%;background:var(--crypto);opacity:.35"></i><i style="width:'+Math.min(100,cur*100)+'%;background:var(--crypto);height:4px;top:2px"></i></div>' +
+      '<p class="small">Target = trend score × '+(C.crypto.vol_target*100)+'% ÷ volatility ÷ '+C.crypto.symbols.length+' coins. The target updates daily, but the bot only trades at the weekly check'+(sg.next_crypto_rebalance?' (next: '+esc(sg.next_crypto_rebalance)+')':'')+', and skips changes under '+(C.crypto.band*100)+'% of the sleeve to save fees.</p></div>';
+  });
+  const gap = nq.gap || 0, pos = 50 + Math.max(-48, Math.min(48, gap * 250));
+  h += '<div class="card"><h3><span class="badge b-nasdaq">Nasdaq</span> QQQ vs its '+C.nasdaq.sma_days+'-day average</h3>' +
+    '<div class="gauge"><div class="track"></div><div class="mid"></div><div class="needle" style="left:'+pos+'%"></div></div>' +
+    '<div class="small" style="display:flex;justify-content:space-between"><span>Below: hold '+C.nasdaq.risk_off+'</span><span>Above: hold '+C.nasdaq.risk_on+'</span></div>' +
+    '<dl class="kv" style="margin-top:12px"><dt>QQQ close ('+esc(sg.nasdaq_last_bar||"–")+')</dt><dd>'+money(nq.close)+'</dd>' +
+    '<dt>'+C.nasdaq.sma_days+'-day average</dt><dd>'+money(nq.sma)+'</dd><dt>Gap</dt><dd class="'+cls(gap)+'"><b>'+pct(gap,2)+'</b></dd>' +
+    '<dt>Signal says hold</dt><dd><b>'+esc(nq.holding||"–")+'</b></dd>' +
+    '<dt>Pending switch</dt><dd>'+(S.pending_stock?'to <b>'+esc(S.pending_stock.to)+'</b> next trading day':'none')+'</dd></dl>' +
+    '<p class="small">The bot checks this after every US close. A switch is placed the next trading day, the same delay used in the backtest.</p></div>';
+  $("#sigcards").innerHTML = h;
+})();
+
+/* ---------- activity ---------- */
+(function activity(){
+  const ev = (S.events || []).slice().reverse().slice(0, 150);
+  $("#events").innerHTML = ev.length ? ev.map(e => '<div class="ev"><span class="d">'+esc(e.date)+'</span><span class="lv lv-'+esc(e.level)+'">'+esc(e.level)+'</span><span>'+esc(e.msg)+'</span></div>').join("") : '<div class="empty">Nothing yet.</div>';
+  $("#datalog").innerHTML = (S.data_log || []).map(l => '<div>'+esc(l)+'</div>').join("") || "–";
+  const sg = S.signals || {};
+  const checks = [
+    ["Crypto data fresh", sg.crypto_ok, "latest bar " + (sg.crypto_last_bar || "–")],
+    ["Stock data fresh", sg.nasdaq_ok, "latest bar " + (sg.nasdaq_last_bar || "–")],
+    ["Safety stop not triggered", !S.halted, S.halted ? S.halt_reason : "halts at -" + (C.halt_at*100).toFixed(0) + "% from peak"],
+    ["Runs completed", S.runs > 0, (S.runs || 0) + " daily runs since " + (S.start_date || "–")],
+  ];
+  $("#health").innerHTML = checks.map(c => '<div class="ev"><span class="lv '+(c[1]?"lv-trade":"lv-error")+'">'+(c[1]?"OK":"CHECK")+'</span><span><b>'+c[0]+'</b><br><span class="small">'+esc(c[2])+'</span></span></div>').join("");
+})();
+
+/* ---------- about ---------- */
+(function about(){
+  const r = C.reference;
+  $("#rules").innerHTML = '<h2>The rules, in plain English</h2>' +
+    '<p>The account is split 50/50 into two sleeves and reset to 50/50 at the start of each month.</p>' +
+    '<p><span class="badge b-crypto">Crypto sleeve</span> Every Monday the bot scores Bitcoin and Ethereum: is the price higher than '+C.crypto.lookbacks.join(", ")+' days ago? Each "yes" adds a third. Calmer coins get bigger positions: the size is the score × '+(C.crypto.vol_target*100)+'% ÷ the coin\'s volatility ÷ 2, never more than 100% of the sleeve and never borrowed money. Anything unused stays in cash.</p>' +
+    '<p><span class="badge b-nasdaq">Nasdaq sleeve</span> After every US close the bot compares QQQ (the Nasdaq-100) to its '+C.nasdaq.sma_days+'-day average. Above it, the sleeve holds QLD, a fund that moves about twice as much as the Nasdaq-100. Below it, the sleeve moves to SHY (short-term US Treasuries) on the next trading day.</p>' +
+    '<p><b>Safety:</b> if the account ever falls '+(C.halt_at*100).toFixed(0)+'% below its peak, the bot stops trading until you review it. It also refuses to trade on stale or mismatched prices and blocks any oversized order.</p>' +
+    '<h2 style="margin-top:18px">Before going live, check</h2><ul class="checklist">' +
+    '<li>The bot ran every day with no gaps or data errors.</li>' +
+    '<li>Every trade on the Trades tab matches the rules above.</li>' +
+    '<li>Fees and fill prices look like what your real broker would charge.</li>' +
+    '<li>You\'re comfortable with the size of the swings: in the backtest the worst drop was '+pct(r.max_drawdown,0,false)+'.</li></ul>';
+  $("#refcard").innerHTML = '<h2>What to expect (backtest)</h2><dl class="kv">' +
+    '<dt>Yearly return</dt><dd><b>'+pct(r.cagr,1,false)+'</b></dd><dt>Worst drop</dt><dd><b class="down">'+pct(r.max_drawdown,1,false)+'</b></dd>' +
+    '<dt>Sharpe ratio</dt><dd>'+r.sharpe.toFixed(2)+'</dd><dt>Period</dt><dd>Jan 2018 – May 2026</dd></dl>' +
+    '<p class="small" style="margin-top:12px">After fees. A single month says almost nothing about these numbers: in the backtest about two months in five (41%) lost money. The paper month is a test that the machinery works, not of the strategy.</p>';
+})();
+
+/* ---------- routing ---------- */
+function route(){
+  const id = (location.hash || "#overview").slice(1);
+  const ok = document.getElementById(id) && document.getElementById(id).tagName === "SECTION" ? id : "overview";
+  document.querySelectorAll("main section").forEach(s => s.classList.toggle("on", s.id === ok));
+  document.querySelectorAll("#nav a").forEach(a => a.classList.toggle("on", a.getAttribute("href") === "#" + ok));
+  if (ok === "overview") draw();
+}
+window.addEventListener("hashchange", route);
+route();
+})();
+</script>
+</body>
+</html>
