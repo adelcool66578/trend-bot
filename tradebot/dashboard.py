@@ -8,6 +8,16 @@ from pathlib import Path
 ASSETS = Path(__file__).resolve().parent.parent / "dashboard"
 
 
+def copy_assets(out_dir="docs"):
+    """Copy the app files (unchanged files produce no git diff, so this is cheap)."""
+    out = Path(out_dir)
+    out.mkdir(parents=True, exist_ok=True)
+    for f in ASSETS.iterdir():
+        if f.is_file():
+            shutil.copyfile(f, out / f.name)
+    (out / ".nojekyll").write_text("")
+
+
 def build(state, cfg, out_dir="docs", report=None, demo=None):
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)

@@ -15,7 +15,7 @@ import sys
 from . import notify
 from .bot import load_state, run_once, save_state
 from .config import load_config
-from .dashboard import build
+from .dashboard import build, copy_assets
 from .data import LiveData
 from .live import alerts_for, daily_due, load_live, save_live, snapshot
 
@@ -74,6 +74,23 @@ def main(argv=None):
         data = LiveData(now)
         if daily_due(state, now):
             state, rep = _daily(cfg, state, data, a)
+        elif state is not None and not state.get("history"):
+            # first refresh after an upgrade: fill in price history so the charts work right away
+            hist = state.setdefault("history", {})
+            for s in cfg["crypto"]["symbols"]:
+                try:
+                    hist[s] = [list(b) for b in data.crypto(s)[0][-400:]]
+                except Exception:
+                    pass
+            n = cfg["nasdaq"]
+            for s in [n["signal_symbol"], n["risk_on"], n["risk_off"]]:
+                try:
+                    hist[s] = [list(b) for b in data.stock(s)[0][-400:]]
+                except Exception:
+                    pass
+            save_state(state, a.state)
+            build(state, cfg, a.docs)
+        copy_assets(a.docs)
         _live(cfg, state, data, a, now)
         return 0  # refresh never fails the workflow: problems are reported as alerts instead
     if a.command == "run":
