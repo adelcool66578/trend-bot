@@ -63,7 +63,7 @@ def _scheduled_notices(cfg, state, live, a, now):
     al = cfg.get("alerts", {})
     url = cfg["account"].get("dashboard_url")
     changed = False
-    if (os.environ.get("TRIGGER_SOURCE") or os.environ.get("GITHUB_EVENT_NAME")) in ("schedule", "cron") \
+    if (os.environ.get("TRIGGER_SOURCE") or os.environ.get("GITHUB_EVENT_NAME")) in ("schedule", "cron", "chain") \
             and not live.get("schedule_confirmed"):
         notify.send("Trend Bot: live checks running",
                     "The automatic checks have started. Prices and your account now update about "

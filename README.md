@@ -8,7 +8,7 @@ A paper-trading bot for the "aggressive" strategy from the research:
 | Nasdaq | 50% | QQQ above its 200-day average → hold **QLD** (2x Nasdaq-100); below → **SHY** (Treasuries). Switch the next trading day | Every US close |
 | Both | | Reset to 50/50 on the first US trading day of each month (skipped if within 2%) | Monthly |
 
-**Every 10 minutes** GitHub runs a live check: fresh prices, account value, and alerts. It never trades on these checks (the strategy was tested on daily closes). The daily trade check runs on the first live check after 21:30 UTC (about 10:30am NZ), and any later check catches up if that one was missed.
+**Every 10 minutes** a live check runs: fresh prices, account value and alerts. Each run starts the next one about 10 minutes later (GitHub's own timer is also set, but it can take days to start on a new repo). It never trades on these checks (the strategy was tested on daily closes). The daily trade check runs on the first live check after 21:30 UTC (about 10:30am NZ), and any later check catches up if that one was missed. If the loop ever stops, press **Actions → Trend Bot → Run workflow** once to restart it.
 
 Backtest, Jan 2018 – May 2026, after fees: about 28–32% a year, worst drop about -45%. About 2 months in 5 lost money. Not a promise.
 

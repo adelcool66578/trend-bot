@@ -1,12 +1,7 @@
 name: Trend Bot
 
 on:
-  schedule:
-    # Every 10 minutes: live prices + account value (never trades).
-    # The daily trade check runs on the first of these after 21:30 UTC (after the US close),
-    # and any later check catches up if that one was missed.
-    - cron: "*/10 * * * *"
-  workflow_dispatch:           # "Run workflow" button for a manual check
+  workflow_dispatch:           # also the "Run workflow" button
     inputs:
       command:
         description: "What to run"
@@ -14,22 +9,30 @@ on:
         options: [refresh, test-alert]
         default: refresh
       source:
-        description: "Who started it (cron = the outside 10-minute scheduler)"
+        description: "Who started it (chain = the bot's own 10-minute loop)"
         type: string
         default: manual
+  schedule:
+    # GitHub's own timer. On new repos it can take hours or days to start, so the bot
+    # also keeps itself going: every run starts the next one about 10 minutes later.
+    - cron: "*/10 * * * *"
 
 permissions:
-  contents: write              # lets the bot commit its state and dashboard
+  contents: write              # commit state and the app's data
+  actions: write               # start the next run of this workflow
 
 concurrency:
   group: trend-bot
-  cancel-in-progress: false    # never run two cycles at once
+  cancel-in-progress: false    # never two checks at once; extra queued starts collapse into one
 
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
+      - name: Note the start time
+        run: echo "STARTED=$(date +%s)" >> "$GITHUB_ENV"
+
       - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v5
@@ -54,6 +57,18 @@ jobs:
           git add state docs
           if ! git diff --cached --quiet; then
             git commit -q -m "Bot update $(date -u +%Y-%m-%dT%H:%MZ)"
-            git pull -q --rebase origin main || true
-            git push
+            for i in 1 2 3; do git pull -q --rebase origin main && git push -q && break; sleep 5; done
           fi
+
+      - name: Start the next check in about 10 minutes
+        if: always() && (inputs.command || 'refresh') == 'refresh'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          wait=$(( 570 - ( $(date +%s) - STARTED ) ))
+          if [ "$wait" -gt 0 ]; then sleep "$wait"; fi
+          for i in 1 2 3; do
+            gh workflow run bot.yml --repo "$GITHUB_REPOSITORY" --ref main -f command=refresh -f source=chain && exit 0
+            sleep 20
+          done
+          echo "could not start the next check" && exit 1
