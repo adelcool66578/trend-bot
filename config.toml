@@ -5,6 +5,10 @@
 starting_cash = 10000.0      # paper money, USD
 broker = "paper"             # "paper" = built-in simulator, "alpaca" = Alpaca paper account
 paper_test_days = 30         # length of the paper trial shown on the dashboard
+dashboard_url = "https://adelcool66578.github.io/trend-bot/"
+
+[alerts]
+intraday_move = 0.04         # alert (once a day) if the account moves 4% between daily runs
 
 [allocation]
 crypto = 0.5                 # share of the account in the crypto sleeve

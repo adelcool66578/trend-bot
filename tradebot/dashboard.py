@@ -1,10 +1,11 @@
-"""Writes the dashboard: docs/index.html + docs/data.js (opens from disk or GitHub Pages)."""
+"""Writes the dashboard app: docs/index.html + data.js + app icon/manifest.
+live.js (10-minute prices) is written separately by the refresh command."""
 import datetime as dt
 import json
 import shutil
 from pathlib import Path
 
-TEMPLATE = Path(__file__).resolve().parent.parent / "dashboard" / "index.html"
+ASSETS = Path(__file__).resolve().parent.parent / "dashboard"
 
 
 def build(state, cfg, out_dir="docs", report=None, demo=None):
@@ -25,14 +26,14 @@ def build(state, cfg, out_dir="docs", report=None, demo=None):
         "state": {k: state.get(k) for k in (
             "start_date", "last_run", "runs", "peak_equity", "halted", "halt_reason",
             "pending_stock", "equity", "events", "signals", "positions_view",
-            "sleeve_cash", "prices", "data_log", "last_stock_bar", "last_crypto_bar")},
+            "sleeve_cash", "prices", "data_log", "last_stock_bar", "last_crypto_bar", "history")},
         "trades": state.get("trades", [])[-1000:],
-        "last_report": report,
+        "last_report": {k: v for k, v in (report or {}).items() if k != "fills"} if report else None,
         "demo": demo,
     }
-    js = "window.BOT_DATA = " + json.dumps(data, default=float, separators=(",", ":")) + ";\n"
-    (out / "data.js").write_text(js)
-    (out / "data.json").write_text(json.dumps(data, default=float))
-    shutil.copyfile(TEMPLATE, out / "index.html")
+    (out / "data.js").write_text("window.BOT_DATA = " + json.dumps(data, default=float, separators=(",", ":")) + ";\n")
+    for f in ASSETS.iterdir():
+        if f.is_file():
+            shutil.copyfile(f, out / f.name)
     (out / ".nojekyll").write_text("")
     return out / "index.html"

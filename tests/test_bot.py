@@ -290,6 +290,68 @@ class TestBotCycle(unittest.TestCase):
             self.assertTrue(out.exists())
 
 
+class TestLiveRefresh(unittest.TestCase):
+    def test_daily_due_rules(self):
+        from tradebot.live import daily_due
+        U = lambda s: dt.datetime.fromisoformat(s).replace(tzinfo=dt.timezone.utc)
+        self.assertTrue(daily_due(None, U("2026-11-24T05:00")))                       # never ran
+        st = {"last_run": "2026-11-23"}
+        self.assertFalse(daily_due(st, U("2026-11-24T05:00")))   # before the US close: wait
+        self.assertTrue(daily_due(st, U("2026-11-24T21:40")))    # after the close: run
+        self.assertFalse(daily_due({"last_run": "2026-11-24"}, U("2026-11-24T23:50")))  # already done
+        self.assertTrue(daily_due({"last_run": "2026-11-22"}, U("2026-11-24T05:00")))   # missed a whole day
+
+    def test_snapshot_values_account_and_never_trades(self):
+        from tradebot.live import snapshot, alerts_for, save_live
+        s = synth_series()
+        state, _ = run_days(s, "2024-08-01", "2024-12-01")
+        before = json.dumps(state, sort_keys=True, default=float)
+        data = ReplayData(s); data.set_date("2024-12-02")
+        now = dt.datetime(2024, 12, 2, 3, 0, tzinfo=dt.timezone.utc)
+        live = snapshot(CFG, state, data, now, None)
+        self.assertEqual(json.dumps(state, sort_keys=True, default=float), before)  # state untouched
+        pos, prices = state["paper"]["positions"], live["prices"]
+        expect = state["paper"]["cash"] + sum(q * prices.get(k, state["prices"][k]) for k, q in pos.items())
+        self.assertAlmostEqual(live["equity"], expect, places=6)
+        self.assertEqual(len(live["intraday"]), 1)
+        live2 = snapshot(CFG, state, data, now + dt.timedelta(minutes=10), live)
+        self.assertEqual(len(live2["intraday"]), 2)
+        self.assertIn("would_hold", live2["nasdaq_live"])
+        # big-move alert fires once a day only
+        live2["change_vs_last_daily"] = -0.06
+        self.assertEqual(len(alerts_for(live2, CFG, now)), 1)
+        self.assertEqual(len(alerts_for(live2, CFG, now)), 0)
+        with tempfile.TemporaryDirectory() as td:
+            save_live(live2, Path(td) / "live.json", Path(td) / "docs")
+            js = (Path(td) / "docs" / "live.js").read_text()
+            json.loads(js[len("window.BOT_LIVE = "):-2])
+
+    def test_daily_alert_messages(self):
+        from tradebot import notify
+        s = synth_series()
+        state, reps = run_days(s, "2024-08-01", "2024-08-05")
+        msgs = notify.daily_messages(state, reps[-1], CFG)
+        self.assertTrue(any("summary" in m[0] for m in msgs))
+        first = [r for r in reps if r["fills"]][0]
+        self.assertTrue(any("trades" in m[0] for m in notify.daily_messages(state, first, CFG)))
+        self.assertFalse(notify.send("x", "y", topic=""))  # no topic: silently skipped
+
+    def test_notify_posts_to_server(self):
+        from tradebot import notify
+        got = []
+        class H(BaseHTTPRequestHandler):
+            def log_message(self, *a): pass
+            def do_POST(self):
+                got.append((self.path, self.headers["Title"], self.rfile.read(int(self.headers["Content-Length"])).decode()))
+                self.send_response(200); self.end_headers()
+        srv = HTTPServer(("127.0.0.1", 0), H); threading.Thread(target=srv.serve_forever, daemon=True).start()
+        try:
+            ok = notify.send("Trend Bot test", "hello", topic="abc", server=f"http://127.0.0.1:{srv.server_port}")
+        finally:
+            srv.shutdown()
+        self.assertTrue(ok); self.assertEqual(got[0], ("/abc", "Trend Bot test", "hello"))
+
+
 class FakeAlpaca(BaseHTTPRequestHandler):
     orders, positions, cash = {}, {}, 100000.0
 

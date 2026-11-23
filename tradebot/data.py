@@ -130,8 +130,21 @@ class LiveData:
         self.now = now or dt.datetime.now(dt.timezone.utc)
         self.today = self.now.date().isoformat()
         self.log = []
+        self._cache = {}
 
     def crypto(self, sym):
+        key = ("c", sym)
+        if key not in self._cache:
+            self._cache[key] = self._crypto(sym)
+        return self._cache[key]
+
+    def stock(self, sym):
+        key = ("s", sym)
+        if key not in self._cache:
+            self._cache[key] = self._stock(sym)
+        return self._cache[key]
+
+    def _crypto(self, sym):
         errors = []
         try:
             pair = KRAKEN_PAIRS.get(sym, sym + "USD")
@@ -152,7 +165,7 @@ class LiveData:
             errors.append(f"coinbase: {e}")
         raise DataError(f"no crypto data for {sym}: {errors}")
 
-    def stock(self, sym):
+    def _stock(self, sym):
         errors = []
         for host in ("query1", "query2"):
             try:

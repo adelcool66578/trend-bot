@@ -1,12 +1,12 @@
-name: Trend Bot daily run
+name: Trend Bot
 
 on:
   schedule:
-    # 21:45 UTC = after the US close all year (10:45am NZ in summer). The second run is a
-    # retry: the bot skips itself if today's run already succeeded.
-    - cron: "45 21 * * *"
-    - cron: "30 23 * * *"
-  workflow_dispatch: {}        # "Run workflow" button for a manual run
+    # Every 10 minutes: live prices + account value (never trades).
+    # The daily trade check runs on the first of these after 21:30 UTC (after the US close),
+    # and any later check catches up if that one was missed.
+    - cron: "*/10 * * * *"
+  workflow_dispatch: {}        # "Run workflow" button for a manual check
 
 permissions:
   contents: write              # lets the bot commit its state and dashboard
@@ -18,7 +18,7 @@ concurrency:
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 
@@ -29,22 +29,20 @@ jobs:
       - name: Self-test (stops here if anything is broken)
         run: python -m unittest discover -s tests
 
-      - name: Run today's cycle
-        id: bot
-        continue-on-error: true
+      - name: Live check (and the daily trade check when due)
         env:
           ALPACA_KEY_ID: ${{ secrets.ALPACA_KEY_ID }}
           ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
-        run: python -m tradebot run
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+        run: python -m tradebot refresh
 
       - name: Save state and dashboard
         run: |
           git config user.name "trend-bot"
           git config user.email "trend-bot@users.noreply.github.com"
           git add state docs
-          git diff --cached --quiet || git commit -m "Bot run $(date -u +%Y-%m-%d)"
-          git push
-
-      - name: Fail loudly if the run had a problem (GitHub emails you)
-        if: steps.bot.outcome != 'success'
-        run: exit 1
+          if ! git diff --cached --quiet; then
+            git commit -q -m "Bot update $(date -u +%Y-%m-%dT%H:%MZ)"
+            git pull -q --rebase origin main || true
+            git push
+          fi

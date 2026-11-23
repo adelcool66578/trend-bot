@@ -4,453 +4,574 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Trend Bot</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="favicon.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Trend Bot">
+<meta name="theme-color" content="#f5f5f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1c1c1e" media="(prefers-color-scheme: dark)">
 <style>
-:root{
-  --bg:#f6f7f9;--panel:#ffffff;--ink:#14171c;--muted:#5d6673;--line:#e3e6eb;--soft:#f0f2f5;
-  --accent:#2457d6;--good:#14834a;--bad:#c4302b;--warn:#a86400;
-  --crypto:#e08a00;--nasdaq:#2457d6;--cash:#9aa3af;--qqq:#7a5af8;--btc:#d97706;
-  --radius:12px;--shadow:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.08);
-}
-@media (prefers-color-scheme:dark){:root{
-  --bg:#0f1216;--panel:#171b21;--ink:#e8ebef;--muted:#9aa4b2;--line:#272d36;--soft:#1e232b;
-  --accent:#6b93ff;--good:#3fbf7f;--bad:#f2665f;--warn:#e0a33a;--nasdaq:#6b93ff;--qqq:#a08bff;--shadow:none}}
-*{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
-a{color:var(--accent)}
-.wrap{max-width:1180px;margin:0 auto;padding:0 20px}
-header{background:var(--panel);border-bottom:1px solid var(--line)}
-.top{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:16px 0 12px}
-.brand{font-weight:700;font-size:19px;letter-spacing:-.01em;display:flex;align-items:center;gap:10px}
-.logo{width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,var(--crypto),var(--nasdaq));display:inline-block}
-.pill{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;font-size:12.5px;font-weight:600;background:var(--soft);color:var(--muted)}
-.pill .dot{width:8px;height:8px;border-radius:50%;background:currentColor}
-.pill.ok{color:var(--good)}.pill.bad{color:var(--bad)}.pill.warn{color:var(--warn)}
-.meta{color:var(--muted);font-size:13px;margin-left:auto;text-align:right}
-.progress{height:6px;background:var(--soft);border-radius:99px;overflow:hidden;width:180px;display:inline-block;vertical-align:middle;margin-left:8px}
-.progress>i{display:block;height:100%;background:var(--accent)}
-nav{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none}
-nav::-webkit-scrollbar{display:none}
-nav a{padding:10px 14px;text-decoration:none;color:var(--muted);font-weight:600;font-size:14px;border-bottom:2px solid transparent;white-space:nowrap}
-nav a:hover{color:var(--ink)}
-nav a.on{color:var(--ink);border-color:var(--accent)}
-@media (max-width:600px){nav{flex-wrap:wrap;gap:0}nav a{padding:8px 10px;font-size:13.5px}}
-main{padding:22px 0 60px}
-section{display:none}section.on{display:block}
-h2{font-size:17px;margin:0 0 12px;letter-spacing:-.01em}
-h3{font-size:14px;margin:0 0 8px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+/* VOICE: a calm macOS utility app. IDEA: Activity Monitor for one trading account.
+   PICTURE: the live account line and the price charts with the bot's trend lines drawn on.
+   COLOUR: system greys, blue for selection, orange = crypto, blue = Nasdaq, green/red for up/down.
+   LAYOUT: translucent sidebar + toolbar + scrolling content; collapses to a top bar under 760px. */
+:root{color-scheme:light dark;
+  --win:light-dark(#f5f5f7,#1c1c1e);--side:light-dark(rgba(236,236,240,.82),rgba(40,40,44,.82));
+  --card:light-dark(#ffffff,#2c2c2e);--ink:light-dark(#1d1d1f,#f5f5f7);--muted:light-dark(#6e6e73,#a1a1a6);
+  --line:light-dark(#e5e5ea,#3a3a3c);--soft:light-dark(#f2f2f7,#3a3a3c);--sel:light-dark(#0071e3,#0a84ff);
+  --good:light-dark(#1f8a3b,#32d74b);--bad:light-dark(#d70015,#ff453a);--warn:light-dark(#b25000,#ff9f0a);
+  --crypto:light-dark(#e07800,#ff9f0a);--nasdaq:light-dark(#0062cc,#409cff);--qqq:light-dark(#7a5af8,#bf5af2);
+  --cash:light-dark(#a1a1a6,#636366);--shadow:light-dark(0 1px 2px rgba(0,0,0,.06),none)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+html,body{height:100%}
+body{margin:0;background:var(--win);color:var(--ink);font:14px/1.45 -apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Arial,sans-serif;-webkit-font-smoothing:antialiased;overflow:hidden}
+.app{display:grid;grid-template-columns:232px minmax(0,1fr);height:100vh}
+.sidebar{background:var(--side);backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);border-right:1px solid var(--line);display:flex;flex-direction:column;padding:18px 10px 12px;overflow:auto}
+.brand{display:flex;align-items:center;gap:10px;padding:2px 10px 16px}
+.brand img{width:34px;height:34px;border-radius:8px}
+.brand b{display:block;font-size:15px}.brand span{font-size:12px;color:var(--muted)}
+.nav a{display:flex;align-items:center;gap:10px;padding:7px 10px;margin:1px 0;border-radius:7px;color:var(--ink);text-decoration:none;font-size:13.5px}
+.nav a svg{width:16px;height:16px;flex:none;stroke:var(--sel);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.nav a .k{margin-left:auto;color:var(--muted);font-size:11.5px}
+.nav a:hover{background:light-dark(rgba(0,0,0,.05),rgba(255,255,255,.07))}
+.nav a.on{background:var(--sel);color:#fff}.nav a.on svg{stroke:#fff}.nav a.on .k{color:rgba(255,255,255,.75)}
+.side-foot{margin-top:auto;padding:12px 10px 4px;border-top:1px solid var(--line);font-size:12px;color:var(--muted)}
+.side-foot .st{display:flex;align-items:center;gap:7px;color:var(--ink);font-weight:600;font-size:12.5px;margin-bottom:4px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--good);flex:none}
+.dot.live{box-shadow:0 0 0 0 color-mix(in srgb,var(--good) 60%,transparent);animation:pulse 2s infinite}
+.dot.warn{background:var(--warn);animation:none}.dot.bad{background:var(--bad);animation:none}
+@keyframes pulse{70%{box-shadow:0 0 0 7px transparent}100%{box-shadow:0 0 0 0 transparent}}
+@media (prefers-reduced-motion:reduce){.dot.live{animation:none}}
+.main{display:flex;flex-direction:column;min-height:0}
+.toolbar{display:flex;align-items:center;gap:14px;padding:12px 24px;border-bottom:1px solid var(--line);background:color-mix(in srgb,var(--win) 85%,transparent);backdrop-filter:blur(20px)}
+.toolbar h1{font-size:17px;margin:0;font-weight:700}
+.toolbar .acct{margin-left:auto;text-align:right;font-variant-numeric:tabular-nums}
+.toolbar .acct b{font-size:17px;display:block}.toolbar .acct span{font-size:12px}
+.btn{font:inherit;font-size:13px;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:7px;padding:6px 12px;cursor:pointer;min-height:32px}
+.btn:hover{border-color:var(--sel)}.btn:focus-visible,.nav a:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid color-mix(in srgb,var(--sel) 45%,transparent);outline-offset:1px}
+.content{overflow:auto;padding:20px 24px 48px}
+section{display:none;max-width:1240px}section.on{display:block}
+h2{font-size:15px;margin:0 0 10px}
 .grid{display:grid;gap:14px}
-.kpis{grid-template-columns:repeat(auto-fit,minmax(190px,1fr));margin-bottom:14px}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px;box-shadow:var(--shadow)}
-.kpi .label{color:var(--muted);font-size:13px}
-.kpi .val{font-size:26px;font-weight:700;letter-spacing:-.02em;margin-top:2px;font-variant-numeric:tabular-nums}
-.kpi .sub{font-size:13px;color:var(--muted);margin-top:2px}
+.k5{grid-template-columns:repeat(auto-fit,minmax(170px,1fr));margin-bottom:14px}
+.two{grid-template-columns:minmax(0,1.7fr) minmax(0,1fr)}.half{grid-template-columns:repeat(2,minmax(0,1fr))}
+@media (max-width:1050px){.two,.half{grid-template-columns:minmax(0,1fr)}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;box-shadow:var(--shadow)}
+.kpi .l{color:var(--muted);font-size:12.5px}.kpi .v{font-size:24px;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums;margin-top:2px}.kpi .s{font-size:12.5px;color:var(--muted)}
 .up{color:var(--good)}.down{color:var(--bad)}
-.two{grid-template-columns:2fr 1fr}
-@media (max-width:860px){.two{grid-template-columns:1fr}.meta{margin-left:0;text-align:left}}
-.chart-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px}
-.chart-head h2{margin:0;margin-right:auto}
-.seg{display:inline-flex;background:var(--soft);border-radius:8px;padding:2px}
-.seg button{border:0;background:transparent;color:var(--muted);font:600 12.5px inherit;font-family:inherit;padding:5px 10px;border-radius:6px;cursor:pointer}
-.seg button.on{background:var(--panel);color:var(--ink);box-shadow:var(--shadow)}
-.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--muted)}
-.legend label{display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none}
-.legend i{width:12px;height:3px;border-radius:2px;display:inline-block}
-.chart{position:relative;height:300px}
-.chart svg{width:100%;height:100%;display:block}
-.tip{position:absolute;pointer-events:none;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:12.5px;box-shadow:var(--shadow);display:none;white-space:nowrap;z-index:2}
-.now p{margin:0 0 10px}
-.now .row{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--line)}
-.now .row:first-of-type{border-top:0;padding-top:0}
-.badge{display:inline-block;padding:1px 8px;border-radius:6px;font-size:12px;font-weight:700}
-.b-crypto{background:color-mix(in srgb,var(--crypto) 16%,transparent);color:var(--crypto)}
-.b-nasdaq{background:color-mix(in srgb,var(--nasdaq) 16%,transparent);color:var(--nasdaq)}
-.b-buy{background:color-mix(in srgb,var(--good) 15%,transparent);color:var(--good)}
-.b-sell{background:color-mix(in srgb,var(--bad) 15%,transparent);color:var(--bad)}
-.split{display:flex;height:12px;border-radius:99px;overflow:hidden;background:var(--soft);margin:8px 0}
-.split i{display:block;height:100%}
-.split-legend{display:flex;gap:14px;font-size:13px;color:var(--muted);flex-wrap:wrap}
-.split-legend b{color:var(--ink)}
-table{width:100%;border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums}
-th{text-align:left;color:var(--muted);font-weight:600;font-size:12.5px;text-transform:uppercase;letter-spacing:.03em;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
-td{padding:10px;border-bottom:1px solid var(--line);white-space:nowrap}
-td.num,th.num{text-align:right}
-tr:last-child td{border-bottom:0}
-.tablewrap{overflow-x:auto}
-.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
-.toolbar input,.toolbar select{font:inherit;font-size:14px;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink)}
-.toolbar .count{margin-left:auto;color:var(--muted);font-size:13px}
-.sig{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
-.dots{display:flex;gap:8px;margin:8px 0}
-.dots span{flex:1;text-align:center;padding:6px 0;border-radius:8px;font-size:12.5px;font-weight:600;background:var(--soft);color:var(--muted)}
-.dots span.yes{background:color-mix(in srgb,var(--good) 15%,transparent);color:var(--good)}
-.dots span.no{background:color-mix(in srgb,var(--bad) 12%,transparent);color:var(--bad)}
-.bar{height:8px;background:var(--soft);border-radius:99px;position:relative;margin:6px 0 2px}
-.bar i{position:absolute;left:0;top:0;bottom:0;border-radius:99px}
-.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:14px}
-.kv dt{color:var(--muted)}.kv dd{margin:0;text-align:right;font-variant-numeric:tabular-nums}
-.gauge{position:relative;height:36px;margin:14px 0 6px}
-.gauge .track{position:absolute;top:15px;left:0;right:0;height:6px;border-radius:99px;background:linear-gradient(90deg,var(--bad),var(--soft) 50%,var(--good))}
-.gauge .mid{position:absolute;left:50%;top:6px;width:2px;height:24px;background:var(--muted)}
-.gauge .needle{position:absolute;top:8px;width:14px;height:20px;margin-left:-7px;border-radius:4px;background:var(--ink)}
-.small{font-size:13px;color:var(--muted)}
-.ev{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:14px}
-.ev:last-child{border-bottom:0}
-.ev .d{color:var(--muted);width:92px;flex:none;font-variant-numeric:tabular-nums}
-.ev .lv{width:62px;flex:none}
-.lv-error{color:var(--bad);font-weight:700}.lv-warn{color:var(--warn);font-weight:700}.lv-trade,.lv-signal{color:var(--accent);font-weight:700}.lv-info,.lv-run{color:var(--muted)}
-.banner{border-radius:var(--radius);padding:12px 16px;margin-bottom:14px;font-weight:600}
-.banner.bad{background:color-mix(in srgb,var(--bad) 14%,transparent);color:var(--bad)}
-.banner.warn{background:color-mix(in srgb,var(--warn) 14%,transparent);color:var(--warn)}
-.empty{color:var(--muted);text-align:center;padding:30px}
-.checklist li{margin:6px 0}
-.about p,.about li{max-width:780px}
-footer{color:var(--muted);font-size:12.5px;text-align:center;padding:20px}
+.tick{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-bottom:14px}
+.tick .card{padding:11px 13px}
+.tick .top{display:flex;justify-content:space-between;align-items:baseline}
+.tick b{font-size:13px}.tick .p{font-size:18px;font-weight:700;font-variant-numeric:tabular-nums}
+.tick .meta{font-size:11.5px;color:var(--muted);display:flex;justify-content:space-between;gap:6px}
+.spark{height:34px;margin:4px 0}.spark svg{width:100%;height:100%;display:block}
+.chead{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px}.chead h2{margin:0;margin-right:auto}
+.seg{display:inline-flex;background:var(--soft);border-radius:7px;padding:2px}
+.seg button{border:0;background:transparent;color:var(--muted);font:600 12px inherit;font-family:inherit;padding:4px 10px;border-radius:5px;cursor:pointer;min-height:26px}
+.seg button.on{background:var(--card);color:var(--ink);box-shadow:var(--shadow)}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-bottom:4px}
+.legend span{display:inline-flex;align-items:center;gap:5px}.legend i{width:12px;height:3px;border-radius:2px;display:inline-block}
+.legend label{display:inline-flex;align-items:center;gap:5px;cursor:pointer}
+.fig{position:relative;height:280px}.fig.sm{height:200px}.fig>svg{position:absolute;inset:0;width:100%;height:100%}
+.tip{position:absolute;pointer-events:none;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:7px 9px;font-size:12px;box-shadow:0 4px 14px rgba(0,0,0,.12);display:none;white-space:nowrap;z-index:3;font-variant-numeric:tabular-nums}
+.note{font-size:12.5px;color:var(--muted);margin:8px 0 0}
+.row{display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-top:1px solid var(--line)}.row>.badge{flex:none;margin-top:2px}.row:first-of-type{border-top:0}
+.badge{display:inline-block;padding:1px 7px;border-radius:5px;font-size:11.5px;font-weight:700;white-space:nowrap}
+.b-crypto{background:color-mix(in srgb,var(--crypto) 18%,transparent);color:var(--crypto)}
+.b-nasdaq{background:color-mix(in srgb,var(--nasdaq) 18%,transparent);color:var(--nasdaq)}
+.b-buy,.b-ok{background:color-mix(in srgb,var(--good) 16%,transparent);color:var(--good)}
+.b-sell,.b-bad{background:color-mix(in srgb,var(--bad) 16%,transparent);color:var(--bad)}
+.b-warn{background:color-mix(in srgb,var(--warn) 16%,transparent);color:var(--warn)}
+.b-grey{background:var(--soft);color:var(--muted)}
+.split{display:flex;height:12px;border-radius:99px;overflow:hidden;background:var(--soft);margin:8px 0}.split i{display:block;height:100%}
+.sl{display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;color:var(--muted)}.sl b{color:var(--ink)}
+table{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}
+th{text-align:left;color:var(--muted);font-weight:600;font-size:12px;padding:7px 9px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:9px;border-bottom:1px solid var(--line);white-space:nowrap}tr:last-child td{border-bottom:0}
+.num{text-align:right}.scroll{overflow-x:auto}
+tbody tr:hover td{background:color-mix(in srgb,var(--sel) 5%,transparent)}
+.tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+.tools select,.tools input{font:inherit;font-size:13px;padding:6px 9px;border:1px solid var(--line);border-radius:7px;background:var(--card);color:var(--ink);min-height:32px}
+.tools .c{margin-left:auto;color:var(--muted);font-size:12.5px}
+.dots{display:flex;gap:6px;margin:8px 0}.dots span{flex:1;text-align:center;padding:6px 0;border-radius:7px;font-size:12px;font-weight:600;background:var(--soft);color:var(--muted)}
+.dots .y{background:color-mix(in srgb,var(--good) 16%,transparent);color:var(--good)}.dots .n{background:color-mix(in srgb,var(--bad) 13%,transparent);color:var(--bad)}
+dl.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:0;font-size:13px}dl.kv dt{color:var(--muted)}dl.kv dd{margin:0;text-align:right;font-variant-numeric:tabular-nums}
+.banner{border-radius:10px;padding:10px 14px;margin-bottom:14px;font-weight:600;font-size:13px}
+.banner.bad{background:color-mix(in srgb,var(--bad) 13%,transparent);color:var(--bad)}.banner.warn{background:color-mix(in srgb,var(--warn) 14%,transparent);color:var(--warn)}
+.ev{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px}.ev:last-child{border-bottom:0}
+.ev .d{color:var(--muted);width:86px;flex:none}.ev .lv{width:56px;flex:none;font-weight:700;font-size:12px}
+.lv-error{color:var(--bad)}.lv-warn{color:var(--warn)}.lv-trade,.lv-signal{color:var(--sel)}.lv-info,.lv-run{color:var(--muted)}
+.empty{color:var(--muted);text-align:center;padding:26px}
+.about p,.about li{max-width:720px}
+@media (max-width:760px){
+  body{overflow:auto}.app{display:block;height:auto}
+  .sidebar{flex-direction:row;flex-wrap:wrap;align-items:center;padding:10px;position:sticky;top:0;z-index:5}
+  .brand{padding:0 8px 0 4px}.brand span{display:none}.nav{display:flex;flex-wrap:wrap;width:100%}.nav a{padding:6px 9px}.nav a .k,.side-foot{display:none}
+  .toolbar{padding:10px 14px}.content{overflow:visible;padding:14px}
+  .stack thead{display:none}.stack tr{display:grid;padding-block:8px;border-bottom:1px solid var(--line)}.stack td{display:flow-root;border:0;padding:3px 0;padding-inline-start:8em;text-align:start}
+  .stack td::before{content:attr(data-l);float:inline-start;width:7.5em;margin-inline-start:-8em;color:var(--muted)}.stack td:empty{display:none}
+}
 </style>
 </head>
 <body>
-<header>
-  <div class="wrap">
-    <div class="top">
-      <div class="brand"><span class="logo"></span>Trend Bot</div>
-      <span id="status" class="pill"><span class="dot"></span><span>Loading</span></span>
-      <span id="broker" class="pill"></span>
-      <div class="meta"><div id="lastrun"></div><div id="trial"></div></div>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand"><img src="icon-192.png" alt=""><div><b>Trend Bot</b><span id="mode">Paper trading</span></div></div>
+    <nav class="nav" id="nav"></nav>
+    <div class="side-foot">
+      <div class="st"><span class="dot live" id="sdot"></span><span id="stext">Live</span></div>
+      <div id="sline1"></div><div id="sline2"></div><div id="sline3"></div>
     </div>
-    <nav id="nav">
-      <a href="#overview">Overview</a><a href="#positions">Positions</a><a href="#trades">Trades</a>
-      <a href="#signals">Signals</a><a href="#activity">Activity</a><a href="#about">How it works</a>
-    </nav>
-  </div>
-</header>
-<main class="wrap">
-  <div id="banners"></div>
-
-  <section id="overview">
-    <div class="grid kpis" id="kpis"></div>
-    <div class="grid two">
-      <div class="card">
-        <div class="chart-head">
-          <h2>Account value</h2>
-          <div class="seg" id="range"><button data-r="30">1M</button><button data-r="90">3M</button><button data-r="0" class="on">All</button></div>
+  </aside>
+  <div class="main">
+    <header class="toolbar">
+      <h1 id="title">Overview</h1>
+      <button class="btn" id="reload" title="Reload the latest data (R)">Refresh</button>
+      <div class="acct"><b id="tb-val">–</b><span id="tb-chg"></span></div>
+    </header>
+    <div class="content" id="content">
+      <div id="banners"></div>
+      <section id="overview">
+        <div class="grid k5" id="kpis"></div>
+        <div class="tick" id="tick"></div>
+        <div class="grid two">
+          <div class="card"><div class="chead"><h2>Account value</h2>
+            <div class="seg" id="ov-range"><button data-r="1">48 hours</button><button data-r="30">1M</button><button data-r="0" class="on">All</button></div></div>
+            <div class="legend" id="ov-legend"></div><div class="fig" id="ov-chart"></div></div>
+          <div class="card" id="now"></div>
         </div>
-        <div class="legend" id="legend"></div>
-        <div class="chart" id="chart"><div class="tip" id="tip"></div></div>
-      </div>
-      <div class="card now" id="now"></div>
-    </div>
-    <div class="card" style="margin-top:14px">
-      <h2>Where the money is</h2>
-      <div class="split" id="split"></div>
-      <div class="split-legend" id="splitlegend"></div>
-    </div>
-  </section>
+        <div class="card" style="margin-top:14px"><h2>Where the money is</h2><div class="split" id="split"></div><div class="sl" id="splitl"></div></div>
+      </section>
 
-  <section id="positions">
-    <div class="card">
-      <h2>Current positions</h2>
-      <div class="tablewrap"><table id="postable"></table></div>
-      <p class="small" style="margin-top:12px">Profit is measured against the average price paid including fees. Cash sits in each sleeve until the bot needs it.</p>
+      <section id="charts">
+        <div class="grid half">
+          <div class="card"><div class="chead"><h2>Account vs just holding</h2></div><div class="legend" id="c1l"></div><div class="fig" id="c1"></div>
+            <p class="note">Every line starts at your starting balance on the bot's first day.</p></div>
+          <div class="card"><div class="chead"><h2>Last 48 hours</h2></div><div class="legend" id="c2l"></div><div class="fig" id="c2"></div>
+            <p class="note">One point every 10 minutes, valued at live prices. The bot only trades once a day.</p></div>
+          <div class="card"><div class="chead"><h2>Bitcoin</h2><div class="seg rng" data-c="BTC"><button data-d="90">3M</button><button data-d="180" class="on">6M</button><button data-d="365">1Y</button></div></div>
+            <div class="legend" id="cBTCl"></div><div class="fig" id="cBTC"></div><p class="note" id="cBTCn"></p></div>
+          <div class="card"><div class="chead"><h2>Ethereum</h2><div class="seg rng" data-c="ETH"><button data-d="90">3M</button><button data-d="180" class="on">6M</button><button data-d="365">1Y</button></div></div>
+            <div class="legend" id="cETHl"></div><div class="fig" id="cETH"></div><p class="note" id="cETHn"></p></div>
+          <div class="card"><div class="chead"><h2>Nasdaq-100 (QQQ) vs its 200-day average</h2><div class="seg rng" data-c="QQQ"><button data-d="90">3M</button><button data-d="180">6M</button><button data-d="365" class="on">1Y</button></div></div>
+            <div class="legend" id="cQQQl"></div><div class="fig" id="cQQQ"></div><p class="note" id="cQQQn"></p></div>
+          <div class="card"><div class="chead"><h2>Drop from peak</h2></div><div class="legend" id="c6l"></div><div class="fig" id="c6"></div>
+            <p class="note">The bot stops trading for review if this reaches the red line.</p></div>
+          <div class="card"><div class="chead"><h2>QLD vs SHY (1 year, rebased to 100)</h2></div><div class="legend" id="c7l"></div><div class="fig" id="c7"></div>
+            <p class="note">QLD is held when the Nasdaq trend is up, SHY when it's down.</p></div>
+        </div>
+      </section>
+
+      <section id="positions"><div class="card"><h2>Current positions</h2><div class="scroll"><table class="stack" id="postable"></table></div>
+        <p class="note">Valued at the latest live prices. Profit is against the average price paid, including fees.</p></div></section>
+
+      <section id="trades"><div class="card"><h2>Trade history</h2>
+        <div class="tools"><select id="f-sleeve" aria-label="Sleeve"><option value="">All sleeves</option><option value="crypto">Crypto</option><option value="nasdaq">Nasdaq</option></select>
+        <select id="f-side" aria-label="Side"><option value="">Buys and sells</option><option value="buy">Buys</option><option value="sell">Sells</option></select>
+        <input id="f-q" type="search" placeholder="Search" aria-label="Search trades"><span class="c" id="tcount"></span></div>
+        <div class="scroll"><table class="stack" id="tradetable"></table></div></div></section>
+
+      <section id="signals"><div class="grid half" id="sigcards"></div></section>
+
+      <section id="activity"><div class="grid two">
+        <div class="card"><h2>Bot log</h2><div id="events"></div></div>
+        <div><div class="card"><h2>Live data check</h2><div class="scroll"><table id="datacheck"></table></div><p class="note" id="datanote"></p></div>
+          <div class="card" style="margin-top:14px"><h2>Health</h2><div id="health"></div></div></div></div></section>
+
+      <section id="about" class="about"><div class="grid two"><div class="card" id="rules"></div><div class="card" id="refcard"></div></div></section>
     </div>
-  </section>
-
-  <section id="trades">
-    <div class="card">
-      <h2>Trade history</h2>
-      <div class="toolbar">
-        <select id="f-sleeve"><option value="">All sleeves</option><option value="crypto">Crypto</option><option value="nasdaq">Nasdaq</option></select>
-        <select id="f-side"><option value="">Buys and sells</option><option value="buy">Buys</option><option value="sell">Sells</option></select>
-        <input id="f-q" type="search" placeholder="Search symbol or reason">
-        <span class="count" id="tcount"></span>
-      </div>
-      <div class="tablewrap"><table id="tradetable"></table></div>
-    </div>
-  </section>
-
-  <section id="signals">
-    <div class="grid sig" id="sigcards"></div>
-  </section>
-
-  <section id="activity">
-    <div class="grid two">
-      <div class="card"><h2>Bot log</h2><div id="events"></div></div>
-      <div class="card"><h2>Data sources (last run)</h2><div id="datalog" class="small"></div>
-        <h2 style="margin-top:18px">Health checks</h2><div id="health"></div></div>
-    </div>
-  </section>
-
-  <section id="about" class="about">
-    <div class="grid two">
-      <div class="card" id="rules"></div>
-      <div class="card" id="refcard"></div>
-    </div>
-  </section>
-</main>
-<footer>Paper trading: no real money. Backtests are not promises. <span id="gen"></span></footer>
-
+  </div>
+</div>
 <script src="data.js"></script>
+<script src="live.js" onerror="window.BOT_LIVE=window.BOT_LIVE||null"></script>
 <script>
-(function(){
+{
 "use strict";
-const D = window.BOT_DATA;
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
-const money = (v, d=2) => v == null || isNaN(v) ? "–" : (v < 0 ? "-$" : "$") + Math.abs(v).toLocaleString(undefined,{minimumFractionDigits:d,maximumFractionDigits:d});
+const money = (v, d=2) => v == null || isNaN(v) ? "–" : (v < 0 ? "-$" : "$") + Math.abs(v).toLocaleString("en-US",{minimumFractionDigits:d,maximumFractionDigits:d});
 const pct = (v, d=1, sign=true) => v == null || isNaN(v) ? "–" : (sign && v > 0 ? "+" : "") + (v*100).toFixed(d) + "%";
 const cls = v => v > 0 ? "up" : v < 0 ? "down" : "";
-const fmtQty = q => Math.abs(q) >= 100 ? q.toFixed(2) : Math.abs(q) >= 1 ? q.toFixed(4) : q.toPrecision(4);
-const NAMES = {BTC:"Bitcoin",ETH:"Ethereum",QLD:"2x Nasdaq-100 ETF",SHY:"Short-term Treasuries",QQQ:"Nasdaq-100"};
-
-if (!D) {
-  document.querySelector("main").innerHTML = '<div class="card empty">No data yet. The dashboard fills in after the bot\'s first run (<code>python -m tradebot run</code>).</div>';
-  $("#status").innerHTML = '<span class="dot"></span><span>Not started</span>';
-  return;
-}
-const S = D.state, C = D.config, EQ = S.equity || [], T = D.trades || [];
-const start = C.starting_cash, last = EQ[EQ.length-1] || {total:start};
-
-/* ---------- header ---------- */
-(function header(){
-  const st = $("#status");
-  const daysSince = S.last_run ? Math.round((Date.now() - Date.parse(S.last_run+"T00:00:00Z"))/864e5) : null;
-  let label = "Running", c = "ok";
-  if (S.halted) { label = "Halted"; c = "bad"; }
-  else if (D.demo) { label = "Demo replay"; c = "warn"; }
-  else if (daysSince != null && daysSince > 2) { label = "No run for " + daysSince + " days"; c = "warn"; }
-  st.className = "pill " + c; st.innerHTML = '<span class="dot"></span><span>' + label + '</span>';
-  $("#broker").textContent = C.broker === "alpaca" ? "Alpaca paper account" : "Paper trading";
-  $("#lastrun").textContent = "Last run " + (S.last_run || "–") + " · updated " + D.generated;
-  const day = S.start_date && S.last_run ? Math.round((Date.parse(S.last_run) - Date.parse(S.start_date))/864e5) + 1 : 0;
-  const p = Math.min(1, day / C.paper_test_days);
-  $("#trial").innerHTML = (day > C.paper_test_days ? "Paper trial complete (day " + day + ")" : "Paper trial day " + day + " of " + C.paper_test_days) +
-    '<span class="progress"><i style="width:' + (p*100) + '%"></i></span>';
-  $("#gen").textContent = "Generated " + D.generated + ".";
-  const b = [];
-  if (D.demo) b.push('<div class="banner warn">' + esc(D.demo) + '</div>');
-  if (S.halted) b.push('<div class="banner bad">Trading is halted: ' + esc(S.halt_reason) + '. Review, then run <code>python -m tradebot resume</code>.</div>');
-  if (!D.demo && daysSince != null && daysSince > 2 && !S.halted) b.push('<div class="banner warn">The bot hasn\'t run for ' + daysSince + ' days. Check the scheduler.</div>');
-  const sig = S.signals || {};
-  if (sig.crypto_ok === false || sig.nasdaq_ok === false) b.push('<div class="banner warn">Some market data was missing or stale on the last run, so part of the bot skipped trading. See Activity.</div>');
-  $("#banners").innerHTML = b.join("");
-})();
-
-/* ---------- KPIs ---------- */
-(function kpis(){
-  const ret = last.total/start - 1;
-  const prev = EQ.length > 1 ? EQ[EQ.length-2].total : start;
-  const day = last.total/prev - 1;
-  let peak = start, mdd = 0;
-  EQ.forEach(p => { peak = Math.max(peak, p.total); mdd = Math.min(mdd, p.total/peak - 1); });
-  const cur = last.total / Math.max(peak, last.total) - 1;
-  const q = last.bench_qqq ? last.bench_qqq/start - 1 : null, b = last.bench_btc ? last.bench_btc/start - 1 : null;
-  const cards = [
-    ["Account value", money(last.total), '<span class="'+cls(ret)+'">'+pct(ret,2)+'</span> since start ('+money(start,0)+')'],
-    ["Last day", '<span class="'+cls(day)+'">'+pct(day,2)+'</span>', money(last.total-prev)+" change"],
-    ["vs holding QQQ", q==null?"–":'<span class="'+cls(ret-q)+'">'+pct(ret-q,1)+'</span>', "QQQ alone: "+pct(q,1)],
-    ["vs holding Bitcoin", b==null?"–":'<span class="'+cls(ret-b)+'">'+pct(ret-b,1)+'</span>', "Bitcoin alone: "+pct(b,1)],
-    ["Drop from peak", '<span class="'+cls(cur)+'">'+pct(cur,1,false)+'</span>', "Worst so far "+pct(mdd,1,false)+" · safety stop at -"+(C.halt_at*100).toFixed(0)+"%"],
-  ];
-  $("#kpis").innerHTML = cards.map(c => '<div class="card kpi"><div class="label">'+c[0]+'</div><div class="val">'+c[1]+'</div><div class="sub">'+c[2]+'</div></div>').join("");
-})();
-
-/* ---------- chart ---------- */
-const SERIES = [
-  {key:"total", name:"Trend Bot", color:"var(--ink)", on:true, w:2.4},
-  {key:"bench_qqq", name:"Hold QQQ", color:"var(--qqq)", on:true, w:1.6},
-  {key:"bench_btc", name:"Hold Bitcoin", color:"var(--btc)", on:false, w:1.6},
-  {key:"crypto", name:"Crypto sleeve", color:"var(--crypto)", on:false, w:1.4, dash:"4 3"},
-  {key:"nasdaq", name:"Nasdaq sleeve", color:"var(--nasdaq)", on:false, w:1.4, dash:"4 3"},
+const qty = q => Math.abs(q) >= 100 ? q.toFixed(2) : Math.abs(q) >= 1 ? q.toFixed(4) : q.toPrecision(4);
+const ago = iso => { if (!iso) return "never"; const m = Math.round((Date.now() - Date.parse(iso)) / 60000);
+  return m < 1 ? "just now" : m < 60 ? m + " min ago" : m < 1440 ? Math.round(m/60) + " h ago" : Math.round(m/1440) + " days ago"; };
+const NAMES = {BTC:"Bitcoin",ETH:"Ethereum",QQQ:"Nasdaq-100 ETF",QLD:"2x Nasdaq-100 ETF",SHY:"1-3yr Treasuries"};
+const COL = {BTC:"var(--crypto)",ETH:"color-mix(in srgb,var(--crypto) 55%,var(--ink))",QQQ:"var(--qqq)",QLD:"var(--nasdaq)",SHY:"var(--cash)"};
+const SECTIONS = [
+  ["overview","Overview",'<path d="M3 12h4l3-8 4 16 3-8h4"/>'],
+  ["charts","Charts",'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>'],
+  ["positions","Positions",'<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 10v10"/>'],
+  ["trades","Trades",'<path d="M7 7h11l-3-3M17 17H6l3 3"/>'],
+  ["signals","Signals",'<circle cx="12" cy="12" r="3"/><path d="M5 12a7 7 0 0 1 14 0M2 12a10 10 0 0 1 20 0"/>'],
+  ["activity","Activity",'<path d="M4 6h16M4 12h10M4 18h13"/>'],
+  ["about","How it works",'<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/>'],
 ];
-let RANGE = 0;
-$("#legend").innerHTML = SERIES.map((s,i) => '<label><input type="checkbox" data-i="'+i+'"'+(s.on?" checked":"")+'> <i style="background:'+s.color+'"></i>'+s.name+'</label>').join("");
-$("#legend").addEventListener("change", e => { SERIES[+e.target.dataset.i].on = e.target.checked; draw(); });
-$("#range").addEventListener("click", e => { if (!e.target.dataset.r) return; RANGE = +e.target.dataset.r;
-  [...$("#range").children].forEach(b => b.classList.toggle("on", b === e.target)); draw(); });
+$("#nav").innerHTML = SECTIONS.map((s,i) => '<a href="#'+s[0]+'"><svg viewBox="0 0 24 24">'+s[2]+'</svg>'+s[1]+'<span class="k">⌘'+(i+1)+'</span></a>').join("");
 
-function draw(){
-  const box = $("#chart"), tip = $("#tip");
-  box.querySelectorAll("svg,.empty").forEach(n => n.remove());
-  let pts = EQ.slice();
-  if (RANGE && pts.length) { const cut = Date.parse(pts[pts.length-1].date) - RANGE*864e5; pts = pts.filter(p => Date.parse(p.date) >= cut); }
-  if (pts.length < 2) { box.insertAdjacentHTML("beforeend", '<div class="empty">The chart appears after the second daily run.</div>'); return; }
-  const W = box.clientWidth, H = box.clientHeight, L = 62, R = 12, Tp = 10, B = 26;
-  const act = SERIES.filter(s => s.on);
-  let lo = Infinity, hi = -Infinity;
-  pts.forEach(p => act.forEach(s => { const v = p[s.key]; if (v != null) { lo = Math.min(lo, v); hi = Math.max(hi, v); } }));
-  if (!isFinite(lo)) { lo = start*0.9; hi = start*1.1; }
-  const pad = (hi - lo) * 0.08 || hi * 0.02; lo -= pad; hi += pad;
-  const x = i => L + (W - L - R) * i / (pts.length - 1), y = v => Tp + (H - Tp - B) * (1 - (v - lo) / (hi - lo));
-  let svg = '<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Account value chart">';
-  for (let k = 0; k <= 4; k++) { const v = lo + (hi-lo)*k/4, yy = y(v);
-    svg += '<line x1="'+L+'" x2="'+(W-R)+'" y1="'+yy+'" y2="'+yy+'" stroke="var(--line)"/>' +
-           '<text x="'+(L-8)+'" y="'+(yy+4)+'" text-anchor="end" font-size="11" fill="var(--muted)">'+money(v,0)+'</text>'; }
-  const ticks = Math.max(2, Math.min(6, pts.length, Math.floor((W - L - R) / 80)));
-  for (let k = 0; k < ticks; k++) { const i = Math.round((pts.length-1)*k/Math.max(1,ticks-1));
-    svg += '<text x="'+x(i)+'" y="'+(H-6)+'" text-anchor="'+(k===0?"start":k===ticks-1?"end":"middle")+'" font-size="11" fill="var(--muted)">'+pts[i].date.slice(5)+'</text>'; }
-  const sy = y(start);
-  if (start >= lo && start <= hi) svg += '<line x1="'+L+'" x2="'+(W-R)+'" y1="'+sy+'" y2="'+sy+'" stroke="var(--muted)" stroke-dasharray="2 4"/>';
-  act.slice().reverse().forEach(s => {
-    let d = "", pen = false;
-    pts.forEach((p,i) => { const v = p[s.key]; if (v == null) { pen = false; return; } d += (pen?"L":"M") + x(i).toFixed(1) + " " + y(v).toFixed(1); pen = true; });
-    svg += '<path d="'+d+'" fill="none" stroke="'+s.color+'" stroke-width="'+s.w+'"'+(s.dash?' stroke-dasharray="'+s.dash+'"':'')+' stroke-linejoin="round"/>';
-  });
-  svg += '<line id="xh" y1="'+Tp+'" y2="'+(H-B)+'" stroke="var(--muted)" stroke-width="1" visibility="hidden"/></svg>';
-  box.insertAdjacentHTML("afterbegin", svg);
-  const el = box.querySelector("svg"), xh = el.querySelector("#xh");
-  el.addEventListener("mousemove", ev => {
-    const r = el.getBoundingClientRect(), mx = (ev.clientX - r.left) * W / r.width;
-    const i = Math.max(0, Math.min(pts.length-1, Math.round((mx - L) / (W - L - R) * (pts.length-1)))), p = pts[i];
-    xh.setAttribute("x1", x(i)); xh.setAttribute("x2", x(i)); xh.setAttribute("visibility", "visible");
-    tip.innerHTML = '<b>'+p.date+'</b><br>' + act.map(s => p[s.key]==null?"":'<span style="color:'+s.color+'">●</span> '+s.name+': '+money(p[s.key])+' <span class="'+cls(p[s.key]/start-1)+'">('+pct(p[s.key]/start-1)+')</span>').filter(Boolean).join("<br>");
-    tip.style.display = "block";
-    const tx = x(i) * r.width / W; tip.style.left = Math.min(r.width - tip.offsetWidth - 4, Math.max(0, tx + 12)) + "px"; tip.style.top = "8px";
-  });
-  el.addEventListener("mouseleave", () => { tip.style.display = "none"; xh.setAttribute("visibility","hidden"); });
+let D, L, S, C, EQ, T, start;
+let ovRange = 0; const RNG = {BTC:180, ETH:180, QQQ:365};
+
+/* ------------------------------------------------ chart engine ------------------------------------------------ */
+// opts: {x:[labels], series:[{name,v,color,w,dash,area}], fmt, marks:[{i,v,color,label}], hlines:[{v,color,label,dash}], xfmt}
+function chart(el, opts) {
+  el._opts = opts;
+  if (!el._ro) { el._ro = new ResizeObserver(() => drawChart(el)); el._ro.observe(el); }
+  drawChart(el);
 }
-window.addEventListener("resize", () => { if ($("#overview").classList.contains("on")) draw(); });
+function drawChart(el) {
+  const o = el._opts; if (!o) return;
+  const W = el.clientWidth, H = el.clientHeight; if (!W || !H) return;
+  const n = o.x.length;
+  if (n < 2) { el.innerHTML = '<div class="empty">'+(o.empty || "Not enough data yet.")+'</div>'; return; }
+  const narrow = W < 420, L0 = narrow ? 48 : 62, R0 = 12, T0 = 10, B0 = 24;
+  let lo = Infinity, hi = -Infinity;
+  o.series.forEach(s => s.v.forEach(v => { if (v != null && isFinite(v)) { lo = Math.min(lo, v); hi = Math.max(hi, v); } }));
+  (o.hlines || []).forEach(h => { if (h.include) { lo = Math.min(lo, h.v); hi = Math.max(hi, h.v); } });
+  if (o.minY != null) lo = Math.min(lo, o.minY); if (o.maxY != null) hi = Math.max(hi, o.maxY);
+  if (!isFinite(lo)) { el.innerHTML = '<div class="empty">No data.</div>'; return; }
+  const pad = (hi - lo) * 0.07 || Math.abs(hi) * 0.02 || 1; lo -= pad; hi += pad; if (o.clampMax != null) hi = Math.min(hi, o.clampMax);
+  const X = i => L0 + (W - L0 - R0) * i / (n - 1), Y = v => T0 + (H - T0 - B0) * (1 - (v - lo) / (hi - lo));
+  const fmt = o.fmt || (v => money(v, 0));
+  let g = '<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="'+esc(o.label||"chart")+'">';
+  for (let k = 0; k <= 4; k++) { const v = lo + (hi - lo) * k / 4, y = Y(v);
+    g += '<line x1="'+L0+'" x2="'+(W-R0)+'" y1="'+y+'" y2="'+y+'" stroke="var(--line)"/><text x="'+(L0-6)+'" y="'+(y+4)+'" text-anchor="end" font-size="11" fill="var(--muted)">'+fmt(v)+'</text>'; }
+  const nt = Math.max(2, Math.min(6, Math.floor((W - L0 - R0) / 90)));
+  for (let k = 0; k < nt; k++) { const i = Math.round((n - 1) * k / (nt - 1));
+    g += '<text x="'+X(i)+'" y="'+(H-6)+'" text-anchor="'+(k===0?"start":k===nt-1?"end":"middle")+'" font-size="11" fill="var(--muted)">'+esc((o.xfmt||(s=>s))(o.x[i]))+'</text>'; }
+  (o.hlines || []).forEach(h => { if (h.v < lo || h.v > hi) return; const y = Y(h.v);
+    g += '<line x1="'+L0+'" x2="'+(W-R0)+'" y1="'+y+'" y2="'+y+'" stroke="'+h.color+'" stroke-dasharray="'+(h.dash||"4 4")+'"/>' +
+         (h.label ? '<text x="'+(L0+6)+'" y="'+(y-5)+'" font-size="11" fill="'+h.color+'" paint-order="stroke" stroke="var(--card)" stroke-width="4">'+esc(h.label)+'</text>' : ""); });
+  o.series.slice().reverse().forEach(s => {
+    let d = "", pen = false, first = null, last = null;
+    s.v.forEach((v, i) => { if (v == null || !isFinite(v)) { pen = false; return; } const x = X(i).toFixed(1), y = Y(v).toFixed(1);
+      d += (pen ? "L" : "M") + x + " " + y; pen = true; if (first == null) first = x; last = x; });
+    if (s.area && first != null) { const base = Y(s.areaBase != null ? Math.max(lo, Math.min(hi, s.areaBase)) : lo).toFixed(1);
+      g += '<path d="'+d+' L'+last+' '+base+' L'+first+' '+base+' Z" fill="'+s.color+'" opacity=".13"/>'; }
+    g += '<path d="'+d+'" fill="none" stroke="'+s.color+'" stroke-width="'+(s.w||1.8)+'"'+(s.dash?' stroke-dasharray="'+s.dash+'"':'')+' stroke-linejoin="round" stroke-linecap="round"/>';
+  });
+  (o.marks || []).forEach(m => { if (m.i == null || m.v == null) return; const x = X(m.i), y = Y(m.v);
+    g += '<circle cx="'+x+'" cy="'+y+'" r="'+(m.r||4.5)+'" fill="'+m.color+'" stroke="var(--card)" stroke-width="2"/>' +
+         (m.label && !narrow ? '<text x="'+x+'" y="'+(y-9)+'" text-anchor="middle" font-size="11" font-weight="600" fill="'+m.color+'" paint-order="stroke" stroke="var(--card)" stroke-width="4">'+esc(m.label)+'</text>' : ""); });
+  g += '<line class="xh" y1="'+T0+'" y2="'+(H-B0)+'" stroke="var(--muted)" visibility="hidden"/></svg><div class="tip"></div>';
+  el.innerHTML = g;
+  const svg = el.querySelector("svg"), xh = svg.querySelector(".xh"), tip = el.querySelector(".tip");
+  const move = cx => { const r = svg.getBoundingClientRect(), mx = (cx - r.left) * W / r.width;
+    const i = Math.max(0, Math.min(n - 1, Math.round((mx - L0) / (W - L0 - R0) * (n - 1))));
+    xh.setAttribute("x1", X(i)); xh.setAttribute("x2", X(i)); xh.setAttribute("visibility", "visible");
+    tip.innerHTML = '<b>'+esc((o.tipx||o.xfmt||(s=>s))(o.x[i]))+'</b>' + o.series.map(s => s.v[i] == null ? "" : '<br><span style="color:'+s.color+'">●</span> '+esc(s.name)+': '+(s.tfmt||fmt)(s.v[i])).join("");
+    tip.style.display = "block"; const tx = X(i) * r.width / W; tip.style.left = Math.max(0, Math.min(r.width - tip.offsetWidth - 2, tx + 12)) + "px"; tip.style.top = "6px"; };
+  svg.addEventListener("mousemove", e => move(e.clientX));
+  svg.addEventListener("touchmove", e => { move(e.touches[0].clientX); }, {passive:true});
+  svg.addEventListener("mouseleave", () => { tip.style.display = "none"; xh.setAttribute("visibility", "hidden"); });
+}
+function legend(el, series) { el.innerHTML = series.map(s => '<span><i style="background:'+s.color+'"></i>'+esc(s.name)+'</span>').join(""); }
+function spark(s, color) { if (!s || s.length < 2) return ""; const lo = Math.min(...s), hi = Math.max(...s), n = s.length;
+  const p = s.map((v,i) => (i===0?"M":"L") + (i*100/(n-1)).toFixed(2) + " " + (30 - (v-lo)/(hi-lo||1)*28 - 1).toFixed(2)).join("");
+  return '<svg viewBox="0 0 100 30" preserveAspectRatio="none"><path d="'+p+'" fill="none" stroke="'+color+'" stroke-width="1.6" vector-effect="non-scaling-stroke"/></svg>'; }
+const sma = (v, n) => v.map((_, i) => i < n - 1 ? null : v.slice(i - n + 1, i + 1).reduce((a, b) => a + b, 0) / n);
+const md = s => s ? s.slice(5) : "";
+const niceDate = s => { const d = new Date(s + (s.length === 10 ? "T00:00:00Z" : "")); return d.toLocaleDateString("en-NZ",{day:"numeric",month:"short",year:"2-digit",timeZone:"UTC"}); };
+const niceTime = s => new Date(s).toLocaleString("en-NZ",{weekday:"short",hour:"numeric",minute:"2-digit"});
 
-/* ---------- now box + split ---------- */
-(function now(){
+/* ------------------------------------------------ current numbers ------------------------------------------------ */
+function cur() {
+  const last = EQ[EQ.length-1] || {total:start, crypto:start/2, nasdaq:start/2, cash:start};
+  const liveNewer = L && L.time && (!S.last_run || Date.parse(L.time) >= Date.parse(S.last_run + "T00:00:00Z"));
+  const prices = Object.assign({}, S.prices || {}, liveNewer ? L.prices : {});
+  const value = s => { const p = (S.positions_view || []).find(x => x.symbol === s); return p ? p.qty * (prices[s] ?? p.price) : 0; };
+  return { last, live: liveNewer ? L : null, prices, value,
+    total: liveNewer ? L.equity : last.total, crypto: liveNewer ? L.crypto : last.crypto, nasdaq: liveNewer ? L.nasdaq : last.nasdaq,
+    cash: liveNewer ? L.cash : last.cash, sinceDaily: liveNewer ? L.change_vs_last_daily : null };
+}
+function hist(sym) { return ((S.history || {})[sym] || []).map(b => ({d: b[0], c: b[1]})); }
+function refClose(sym, live) { // the close to compare the live price with
+  const h = hist(sym); if (!h.length) return null; const last = h[h.length-1];
+  if (["BTC","ETH"].includes(sym)) return last.c;
+  return (live != null && Math.abs(live - last.c) < 1e-9 && h.length > 1) ? h[h.length-2].c : last.c;
+}
+function sourceOf(sym) { const src = (L && L.sources) || S.data_log || []; const line = src.find(l => l.startsWith(sym + ":")); return line ? line.split(":")[1].split(",")[0].trim() : "–"; }
+
+/* ------------------------------------------------ renderers ------------------------------------------------ */
+function renderStatus() {
+  const lt = L && L.time, lr = S.last_run;
+  const mins = lt ? (Date.now() - Date.parse(lt)) / 60000 : Infinity;
+  const dot = $("#sdot"); let txt;
+  if (S.halted) { dot.className = "dot bad"; txt = "Halted"; }
+  else if (D.demo) { dot.className = "dot warn"; txt = "Demo replay"; }
+  else if (mins > 45) { dot.className = "dot warn"; txt = "Prices delayed"; }
+  else { dot.className = "dot live"; txt = "Live"; }
+  $("#stext").textContent = txt;
+  $("#sline1").textContent = "Prices updated " + ago(lt);
+  $("#sline2").textContent = "Last trade check " + (lr || "–");
+  const day = S.start_date && lr ? Math.round((Date.parse(lr) - Date.parse(S.start_date)) / 864e5) + 1 : 0;
+  $("#sline3").textContent = day > C.paper_test_days ? "Paper trial complete (day " + day + ")" : "Paper trial day " + day + " of " + C.paper_test_days;
+  $("#mode").textContent = C.broker === "alpaca" ? "Alpaca paper account" : "Paper trading";
+  const n = cur(), tot = n.total, chg = tot / start - 1;
+  $("#tb-val").textContent = money(tot);
+  $("#tb-chg").innerHTML = '<span class="'+cls(chg)+'">'+pct(chg,2)+'</span> since start';
+  const b = [];
+  if (D.demo) b.push('<div class="banner warn">'+esc(D.demo)+'</div>');
+  if (S.halted) b.push('<div class="banner bad">Trading is halted: '+esc(S.halt_reason)+'. Review, then run <code>python -m tradebot resume</code>.</div>');
+  if (!D.demo && mins > 45 && mins !== Infinity) b.push('<div class="banner warn">Live prices haven\'t updated for '+ago(lt).replace(" ago","")+'. GitHub may be delaying the scheduled checks.</div>');
+  if (L && L.warnings && L.warnings.length) b.push('<div class="banner warn">Last price check had problems: '+esc(L.warnings.slice(0,2).join("; "))+'</div>');
+  $("#banners").innerHTML = b.join("");
+}
+
+function renderOverview() {
+  const n = cur(), tot = n.total, ret = tot / start - 1;
+  let peak = start, mdd = 0; EQ.forEach(p => { peak = Math.max(peak, p.total); mdd = Math.min(mdd, p.total / peak - 1); });
+  peak = Math.max(peak, tot); const dd = tot / peak - 1;
+  const lq = n.last.bench_qqq, lb = n.last.bench_btc;
+  const qNow = lq && n.live && S.prices.QQQ ? lq * n.prices.QQQ / S.prices.QQQ : lq;
+  const bNow = lb && n.live && S.prices.BTC ? lb * n.prices.BTC / S.prices.BTC : lb;
+  const q = qNow ? qNow / start - 1 : null, bb = bNow ? bNow / start - 1 : null;
+  const prevDaily = EQ.length > 1 ? EQ[EQ.length-2].total : start;
+  const K = [
+    ["Account value", money(tot), '<span class="'+cls(ret)+'">'+pct(ret,2)+'</span> since '+esc(S.start_date || "start")],
+    ["Since last trade check", n.sinceDaily == null ? pct(n.last.total/prevDaily-1,2) : '<span class="'+cls(n.sinceDaily)+'">'+pct(n.sinceDaily,2)+'</span>', n.live ? "live, " + ago(n.live.time) : "daily close"],
+    ["vs holding QQQ", q == null ? "–" : '<span class="'+cls(ret-q)+'">'+pct(ret-q,1)+'</span>', "QQQ alone " + pct(q,1)],
+    ["vs holding Bitcoin", bb == null ? "–" : '<span class="'+cls(ret-bb)+'">'+pct(ret-bb,1)+'</span>', "Bitcoin alone " + pct(bb,1)],
+    ["Drop from peak", '<span class="'+cls(dd)+'">'+pct(dd,1,false)+'</span>', "worst " + pct(mdd,1,false) + " · stops at -" + (C.halt_at*100).toFixed(0) + "%"],
+  ];
+  $("#kpis").innerHTML = K.map(k => '<div class="card kpi"><div class="l">'+k[0]+'</div><div class="v">'+k[1]+'</div><div class="s">'+k[2]+'</div></div>').join("");
+
+  $("#tick").innerHTML = ["BTC","ETH","QQQ","QLD","SHY"].map(s => {
+    const p = n.prices[s], ref = refClose(s, p), ch = p != null && ref ? p / ref - 1 : null, h = hist(s).slice(-90).map(b => b.c);
+    if (p != null && h.length) h.push(p);
+    return '<div class="card"><div class="top"><b>'+s+'</b><span class="'+cls(ch)+'" style="font-size:12.5px;font-weight:600">'+pct(ch,2)+'</span></div>' +
+      '<div class="p">'+money(p, p < 10 ? 4 : 2)+'</div><div class="spark">'+spark(h, COL[s])+'</div>' +
+      '<div class="meta"><span>'+esc(NAMES[s])+'</span><span>'+esc(sourceOf(s))+'</span></div></div>';
+  }).join("");
+
+  // account chart
+  let x, series;
+  if (ovRange === 1) {
+    const pts = (L && L.intraday) || [];
+    x = pts.map(p => p.t); series = [{name:"Account (live)", v: pts.map(p => p.equity), color:"var(--ink)", w:2.2, area:true, areaBase:Math.min(...pts.map(p=>p.equity))}];
+    $("#ov-legend").innerHTML = '<span>Valued every 10 minutes at live prices</span>';
+    chart($("#ov-chart"), {x, series, xfmt: t => new Date(t).toLocaleTimeString("en-NZ",{hour:"numeric",minute:"2-digit"}), tipx: niceTime, empty:"Live points appear after the first 10-minute checks."});
+  } else {
+    let pts = EQ.slice();
+    if (n.live && pts.length && n.live.time.slice(0,10) >= pts[pts.length-1].date) pts.push({date: n.live.time.slice(0,10)+" now", total: n.total,
+      bench_qqq: qNow, bench_btc: bNow});
+    if (ovRange) pts = pts.slice(-ovRange);
+    x = pts.map(p => p.date);
+    series = [{name:"Trend Bot", v: pts.map(p => p.total), color:"var(--ink)", w:2.4},
+              {name:"Hold QQQ", v: pts.map(p => p.bench_qqq ?? null), color:"var(--qqq)", w:1.5},
+              {name:"Hold Bitcoin", v: pts.map(p => p.bench_btc ?? null), color:"var(--crypto)", w:1.5}];
+    legend($("#ov-legend"), series);
+    chart($("#ov-chart"), {x, series, xfmt: md, hlines:[{v:start, color:"var(--muted)", dash:"2 4"}], empty:"The chart fills in after the second day."});
+  }
+
+  // what the bot is doing
   const sg = S.signals || {}, nq = sg.nasdaq || {}, cr = sg.crypto || {};
-  const pv = S.positions_view || [];
-  const val = s => (pv.find(p => p.symbol === s) || {}).value || 0;
-  const tot = last.total || 1;
   const rows = [];
   if (nq.holding) {
     const up = nq.holding === C.nasdaq.risk_on;
-    rows.push('<div class="row"><span class="badge b-nasdaq">Nasdaq</span><div>'+(up
-      ? 'Trend is <b class="up">up</b>: QQQ is '+pct(nq.gap)+' vs its '+C.nasdaq.sma_days+'-day average, so the sleeve holds <b>'+C.nasdaq.risk_on+'</b> (2x Nasdaq).'
-      : 'Trend is <b class="down">down</b>: QQQ is '+pct(nq.gap)+' vs its '+C.nasdaq.sma_days+'-day average, so the sleeve sits in <b>'+C.nasdaq.risk_off+'</b> (Treasuries).')+'</div></div>');
+    rows.push('<div class="row"><span class="badge b-nasdaq">Nasdaq</span><div>Trend is <b class="'+(up?"up":"down")+'">'+(up?"up":"down")+'</b>: QQQ closed '+pct(nq.gap)+' vs its '+C.nasdaq.sma_days+'-day average, so the sleeve is in <b>'+(up?C.nasdaq.risk_on+'</b> (2x Nasdaq).':C.nasdaq.risk_off+'</b> (Treasuries).')+
+      (n.live && n.live.nasdaq_live ? '<div class="note">Live: QQQ '+pct(n.live.nasdaq_live.gap)+' vs average. If it closed here the bot would hold <b>'+esc(n.live.nasdaq_live.would_hold)+'</b>.</div>' : '')+'</div></div>');
   }
-  const coins = C.crypto.symbols.map(s => s + " " + pct(val(s)/((last.crypto)||1),0,false)).join(", ");
-  rows.push('<div class="row"><span class="badge b-crypto">Crypto</span><div>Sleeve is '+coins+', the rest in cash. '+
-    C.crypto.symbols.map(s => cr[s] && cr[s].score!=null ? s+' trend '+Math.round(cr[s].score*3)+'/3' : '').filter(Boolean).join(" · ")+'</div></div>');
-  const next = [];
-  if (S.pending_stock) next.push('<b>Next trading day:</b> switch Nasdaq sleeve to '+esc(S.pending_stock.to));
-  if (sg.next_crypto_rebalance) next.push('<b>'+esc(sg.next_crypto_rebalance)+':</b> weekly crypto check');
-  if (sg.next_month_rebalance) next.push('<b>'+esc(sg.next_month_rebalance)+':</b> monthly reset to 50/50');
-  rows.push('<div class="row"><span class="badge" style="background:var(--soft)">Next</span><div>'+next.join("<br>")+'</div></div>');
+  const cv = n.crypto || 1;
+  rows.push('<div class="row"><span class="badge b-crypto">Crypto</span><div>Sleeve: '+C.crypto.symbols.map(s => s+' '+pct(n.value(s)/cv,0,false)).join(", ")+', the rest in cash. Trend scores '+
+    C.crypto.symbols.map(s => s+' '+(cr[s] && cr[s].score != null ? Math.round(cr[s].score*3)+'/3' : '–')).join(" · ")+'.' +
+    (n.live && n.live.crypto_live ? '<div class="note">Live scores: '+C.crypto.symbols.map(s => s+' '+(n.live.crypto_live[s] && n.live.crypto_live[s].score != null ? Math.round(n.live.crypto_live[s].score*3)+'/3' : '–')).join(" · ")+'. Trades happen at the weekly check.</div>' : '')+'</div></div>');
+  const nx = [];
+  if (S.pending_stock) nx.push('<b>Next trading day:</b> switch Nasdaq sleeve to '+esc(S.pending_stock.to));
+  if (sg.next_crypto_rebalance) nx.push('<b>'+esc(niceDate(sg.next_crypto_rebalance))+':</b> weekly crypto check');
+  if (sg.next_month_rebalance) nx.push('<b>'+esc(niceDate(sg.next_month_rebalance))+':</b> monthly reset to 50/50');
+  nx.push('<b>Daily:</b> trade check after the US close (about 10:30am NZ)');
+  rows.push('<div class="row"><span class="badge b-grey">Next</span><div>'+nx.join("<br>")+'</div></div>');
   $("#now").innerHTML = '<h2>What the bot is doing</h2>' + rows.join("");
 
   const parts = [];
-  C.crypto.symbols.forEach((s,i) => parts.push([s, val(s), i ? "color-mix(in srgb,var(--crypto) 60%,var(--panel))" : "var(--crypto)"]));
-  [C.nasdaq.risk_on, C.nasdaq.risk_off].forEach((s,i) => parts.push([s, val(s), i ? "color-mix(in srgb,var(--nasdaq) 55%,var(--panel))" : "var(--nasdaq)"]));
-  parts.push(["Cash", last.cash || 0, "var(--cash)"]);
+  C.crypto.symbols.forEach(s => parts.push([s, n.value(s), COL[s] || "var(--crypto)"]));
+  [C.nasdaq.risk_on, C.nasdaq.risk_off].forEach(s => parts.push([s, n.value(s), COL[s]]));
+  parts.push(["Cash", n.cash || 0, "var(--soft)"]);
   $("#split").innerHTML = parts.filter(p => p[1] > 0).map(p => '<i title="'+p[0]+'" style="width:'+(p[1]/tot*100)+'%;background:'+p[2]+'"></i>').join("");
-  $("#splitlegend").innerHTML = parts.map(p => '<span><span class="badge" style="background:'+p[2]+';width:10px;height:10px;padding:0;border-radius:3px;vertical-align:-1px"></span> '+p[0]+' <b>'+pct(p[1]/tot,1,false)+'</b> '+money(p[1],0)+'</span>').join("") +
-    '<span style="margin-left:auto">Crypto sleeve <b>'+money(last.crypto,0)+'</b> · Nasdaq sleeve <b>'+money(last.nasdaq,0)+'</b></span>';
-})();
-
-/* ---------- positions ---------- */
-(function positions(){
-  const pv = (S.positions_view || []).slice().sort((a,b) => b.value - a.value);
-  const tot = last.total || 1;
-  let h = '<tr><th>Asset</th><th>Sleeve</th><th class="num">Quantity</th><th class="num">Price</th><th class="num">Value</th><th class="num">% of account</th><th class="num">Avg cost</th><th class="num">Profit</th></tr>';
-  if (!pv.length) h += '<tr><td colspan="8" class="empty">No positions yet.</td></tr>';
-  pv.forEach(p => {
-    const pnl = p.avg_cost ? (p.price - p.avg_cost) * p.qty : null, pr = p.avg_cost ? p.price/p.avg_cost - 1 : null;
-    h += '<tr><td><b>'+esc(p.symbol)+'</b> <span class="small">'+esc(NAMES[p.symbol]||"")+'</span></td><td><span class="badge b-'+p.sleeve+'">'+p.sleeve+'</span></td>' +
-      '<td class="num">'+fmtQty(p.qty)+'</td><td class="num">'+money(p.price)+'</td><td class="num"><b>'+money(p.value)+'</b></td>' +
-      '<td class="num">'+pct(p.value/tot,1,false)+'</td><td class="num">'+money(p.avg_cost)+'</td>' +
-      '<td class="num '+cls(pnl)+'">'+(pnl==null?"–":money(pnl)+' ('+pct(pr)+')')+'</td></tr>';
-  });
-  const sc = S.sleeve_cash || {};
-  ["crypto","nasdaq"].forEach(k => { if ((sc[k]||0) > 0.5) h += '<tr><td><b>Cash</b></td><td><span class="badge b-'+k+'">'+k+'</span></td><td></td><td></td><td class="num">'+money(sc[k])+'</td><td class="num">'+pct(sc[k]/tot,1,false)+'</td><td></td><td></td></tr>'; });
-  $("#postable").innerHTML = h;
-})();
-
-/* ---------- trades ---------- */
-function trades(){
-  const sl = $("#f-sleeve").value, sd = $("#f-side").value, q = $("#f-q").value.trim().toLowerCase();
-  const rows = T.slice().reverse().filter(t => (!sl || t.sleeve === sl) && (!sd || t.side === sd) &&
-    (!q || (t.symbol + " " + t.reason).toLowerCase().includes(q)));
-  let h = '<tr><th>Date</th><th>Side</th><th>Asset</th><th class="num">Quantity</th><th class="num">Price</th><th class="num">Value</th><th class="num">Fee</th><th>Why</th></tr>';
-  if (!rows.length) h += '<tr><td colspan="8" class="empty">No trades match.</td></tr>';
-  rows.slice(0, 500).forEach(t => {
-    h += '<tr><td>'+esc(t.time)+'</td><td><span class="badge b-'+t.side+'">'+t.side.toUpperCase()+'</span></td><td><b>'+esc(t.symbol)+'</b> <span class="badge b-'+t.sleeve+'">'+t.sleeve+'</span></td>' +
-      '<td class="num">'+fmtQty(t.qty)+'</td><td class="num">'+money(t.price)+'</td><td class="num">'+money(t.notional)+'</td><td class="num">'+money(t.fee)+'</td><td>'+esc(t.reason)+(t.status && t.status!=="filled"?' <span class="small">('+esc(t.status)+')</span>':'')+'</td></tr>';
-  });
-  $("#tradetable").innerHTML = h;
-  const fees = rows.reduce((a,t) => a + (t.fee||0), 0);
-  $("#tcount").textContent = rows.length + " trades · " + money(fees) + " in fees";
+  $("#splitl").innerHTML = parts.map(p => '<span><span class="badge" style="background:'+p[2]+';width:10px;height:10px;padding:0;border-radius:3px;vertical-align:-1px"></span> '+p[0]+' <b>'+pct(p[1]/tot,1,false)+'</b> '+money(p[1],0)+'</span>').join("") +
+    '<span style="margin-left:auto">Crypto sleeve <b>'+money(n.crypto,0)+'</b> · Nasdaq sleeve <b>'+money(n.nasdaq,0)+'</b></span>';
 }
-["#f-sleeve","#f-side","#f-q"].forEach(s => $(s).addEventListener("input", trades));
-trades();
 
-/* ---------- signals ---------- */
-(function signals(){
-  const sg = S.signals || {}, cr = sg.crypto || {}, nq = sg.nasdaq || {};
-  const pv = S.positions_view || [];
+function priceChart(sym) {
+  const n = cur(), live = n.prices[sym]; let h = hist(sym);
+  const el = $("#c"+sym); if (!h.length) { el.innerHTML = '<div class="empty">Price history appears after the next daily run.</div>'; return; }
+  const full = h.map(b => b.c);
+  const x = h.map(b => b.d), v = full.slice();
+  const today = new Date().toISOString().slice(0,10);
+  if (live != null && (sym === "BTC" || sym === "ETH" || Math.abs(live - v[v.length-1]) > 1e-9)) { x.push("Live"); v.push(live); }
+  const take = Math.min(RNG[sym], v.length);
+  const xs = x.slice(-take), vs = v.slice(-take), off = v.length - take;
+  const series = [{name: sym + (sym==="QQQ"?" price":" price (USD)"), v: vs, color: COL[sym], w: 2}];
+  const marks = [], hl = [];
+  let note = "";
+  if (sym === "QQQ") {
+    const avg = sma(v, C.nasdaq.sma_days).slice(-take);
+    series.push({name: C.nasdaq.sma_days + "-day average", v: avg, color: "var(--muted)", w: 1.5, dash: "5 4"});
+    const g = vs[vs.length-1] / avg[avg.length-1] - 1;
+    note = "Now " + pct(g) + " vs the average, so the bot " + (g > 0 ? "holds QLD (2x Nasdaq)." : "stays in SHY (Treasuries).") + " A cross only counts at a US close.";
+  } else {
+    const lastI = v.length - 1;
+    C.crypto.lookbacks.forEach(lb => { const i = lastI - lb; if (i - off >= 0) { const up = v[lastI] > v[i];
+      marks.push({i: i - off, v: v[i], color: up ? "var(--good)" : "var(--bad)", label: lb + "d"}); } });
+    hl.push({v: v[lastI], color: "var(--muted)", label: "now " + money(v[lastI], 0), dash: "2 4"});
+    marks.push({i: vs.length - 1, v: vs[vs.length-1], color: COL[sym], r: 5});
+    const ups = C.crypto.lookbacks.filter(lb => lastI - lb >= 0 && v[lastI] > v[lastI - lb]).length;
+    note = "Dots mark the price " + C.crypto.lookbacks.join(", ") + " days ago: green if today's price is higher. " + ups + " of " + C.crypto.lookbacks.length + " green = trend score " + ups + "/3.";
+  }
+  legend($("#c"+sym+"l"), series);
+  chart(el, {x: xs, series, marks, hlines: hl, xfmt: s => s === "Live" ? "now" : md(s), tipx: s => s === "Live" ? "Live price" : niceDate(s),
+    fmt: v => money(v, v < 100 ? 2 : 0), label: sym + " price chart"});
+  $("#c"+sym+"n").textContent = note;
+}
+
+function renderCharts() {
+  const n = cur();
+  let pts = EQ.slice();
+  const s1 = [{name:"Trend Bot", v: pts.map(p => p.total), color:"var(--ink)", w:2.4},
+              {name:"Hold QQQ", v: pts.map(p => p.bench_qqq ?? null), color:"var(--qqq)"},
+              {name:"Hold Bitcoin", v: pts.map(p => p.bench_btc ?? null), color:"var(--crypto)"}];
+  legend($("#c1l"), s1);
+  chart($("#c1"), {x: pts.map(p => p.date), series: s1, xfmt: md, hlines:[{v:start, color:"var(--muted)", dash:"2 4"}], empty:"Fills in after the second day."});
+  const ip = (L && L.intraday) || [];
+  const s2 = [{name:"Account", v: ip.map(p => p.equity), color:"var(--ink)", w:2, area:true, areaBase: ip.length ? Math.min(...ip.map(p=>p.equity)) : 0}];
+  legend($("#c2l"), s2);
+  chart($("#c2"), {x: ip.map(p => p.t), series: s2, xfmt: t => new Date(t).toLocaleTimeString("en-NZ",{hour:"numeric",minute:"2-digit"}), tipx: niceTime,
+    hlines: n.last ? [{v:n.last.total, color:"var(--muted)", label:"last daily run", dash:"2 4"}] : [], empty:"Points appear after the first 10-minute checks."});
+  ["BTC","ETH","QQQ"].forEach(priceChart);
+  let peak = start; const dd = pts.map(p => { peak = Math.max(peak, p.total); return p.total / peak - 1; });
+  const s6 = [{name:"Drop from peak", v: dd, color:"var(--bad)", area:true, areaBase:0, w:1.6, tfmt: v => pct(v,1,false)}];
+  legend($("#c6l"), s6);
+  chart($("#c6"), {x: pts.map(p => p.date), series: s6, xfmt: md, fmt: v => pct(v,0,false), maxY: 0, clampMax: 0.005,
+    hlines:[{v:-C.halt_at, color:"var(--bad)", label:"safety stop -"+(C.halt_at*100).toFixed(0)+"%", include:true}], empty:"Fills in after the second day."});
+  const a = hist("QLD"), b = hist("SHY");
+  if (a.length && b.length) {
+    const m = Math.min(a.length, b.length, 260), A = a.slice(-m), B = b.slice(-m);
+    const s7 = [{name:"QLD (2x Nasdaq)", v: A.map(x => x.c / A[0].c * 100), color:"var(--nasdaq)", w:2, tfmt:v=>v.toFixed(1)},
+                {name:"SHY (Treasuries)", v: B.map(x => x.c / B[0].c * 100), color:"var(--cash)", w:2, tfmt:v=>v.toFixed(1)}];
+    legend($("#c7l"), s7);
+    chart($("#c7"), {x: A.map(x => x.d), series: s7, xfmt: md, fmt: v => v.toFixed(0), hlines:[{v:100, color:"var(--muted)", dash:"2 4"}]});
+  } else $("#c7").innerHTML = '<div class="empty">Appears after the next daily run.</div>';
+}
+
+function renderPositions() {
+  const n = cur(), tot = n.total || 1;
+  const pv = (S.positions_view || []).map(p => Object.assign({}, p, {price: n.prices[p.symbol] ?? p.price})).map(p => Object.assign(p, {value: p.qty * p.price})).sort((a,b) => b.value - a.value);
+  let h = '<thead><tr><th>Asset</th><th>Sleeve</th><th class="num">Quantity</th><th class="num">Price</th><th class="num">Value</th><th class="num">Share</th><th class="num">Avg cost</th><th class="num">Profit</th></tr></thead><tbody>';
+  if (!pv.length) h += '<tr><td colspan="8" class="empty">No positions: the bot is fully in cash.</td></tr>';
+  pv.forEach(p => { const pnl = p.avg_cost ? (p.price - p.avg_cost) * p.qty : null, pr = p.avg_cost ? p.price / p.avg_cost - 1 : null;
+    h += '<tr><td data-l="Asset"><b>'+esc(p.symbol)+'</b> <span class="note">'+esc(NAMES[p.symbol]||"")+'</span></td><td data-l="Sleeve"><span class="badge b-'+p.sleeve+'">'+p.sleeve+'</span></td>' +
+      '<td class="num" data-l="Quantity">'+qty(p.qty)+'</td><td class="num" data-l="Price">'+money(p.price)+'</td><td class="num" data-l="Value"><b>'+money(p.value)+'</b></td><td class="num" data-l="Share">'+pct(p.value/tot,1,false)+'</td>' +
+      '<td class="num" data-l="Avg cost">'+money(p.avg_cost)+'</td><td class="num '+cls(pnl)+'" data-l="Profit">'+(pnl==null?"–":money(pnl)+' ('+pct(pr)+')')+'</td></tr>'; });
+  const sc = S.sleeve_cash || {};
+  ["crypto","nasdaq"].forEach(k => { if ((sc[k]||0) > 0.5) h += '<tr><td data-l="Asset"><b>Cash</b></td><td data-l="Sleeve"><span class="badge b-'+k+'">'+k+'</span></td><td></td><td></td><td class="num" data-l="Value">'+money(sc[k])+'</td><td class="num" data-l="Share">'+pct(sc[k]/tot,1,false)+'</td><td></td><td></td></tr>'; });
+  $("#postable").innerHTML = h + "</tbody>";
+}
+
+function renderTrades() {
+  const sl = $("#f-sleeve").value, sd = $("#f-side").value, q = $("#f-q").value.trim().toLowerCase();
+  const rows = T.slice().reverse().filter(t => (!sl || t.sleeve === sl) && (!sd || t.side === sd) && (!q || (t.symbol + " " + t.reason + " " + t.time).toLowerCase().includes(q)));
+  let h = '<thead><tr><th>Date</th><th>Side</th><th>Asset</th><th class="num">Quantity</th><th class="num">Price</th><th class="num">Value</th><th class="num">Fee</th><th>Why</th></tr></thead><tbody>';
+  if (!rows.length) h += '<tr><td colspan="8" class="empty">'+(T.length ? "No trades match." : "No trades yet. Both markets are in downtrends, so the bot is waiting in cash and Treasuries.")+'</td></tr>';
+  rows.slice(0, 500).forEach(t => { h += '<tr><td data-l="Date">'+esc(t.time)+'</td><td data-l="Side"><span class="badge b-'+t.side+'">'+t.side.toUpperCase()+'</span></td><td data-l="Asset"><b>'+esc(t.symbol)+'</b> <span class="badge b-'+t.sleeve+'">'+t.sleeve+'</span></td>' +
+    '<td class="num" data-l="Quantity">'+qty(t.qty)+'</td><td class="num" data-l="Price">'+money(t.price)+'</td><td class="num" data-l="Value">'+money(t.notional)+'</td><td class="num" data-l="Fee">'+money(t.fee)+'</td><td data-l="Why">'+esc(t.reason)+'</td></tr>'; });
+  $("#tradetable").innerHTML = h + "</tbody>";
+  $("#tcount").textContent = rows.length + " trades · " + money(rows.reduce((a,t) => a + (t.fee||0), 0)) + " fees";
+}
+
+function renderSignals() {
+  const n = cur(), sg = S.signals || {}, cr = sg.crypto || {}, nq = sg.nasdaq || {};
   let h = "";
-  C.crypto.symbols.forEach(s => {
-    const d = cr[s] || {}, cur = ((pv.find(p => p.symbol === s) || {}).value || 0) / (last.crypto || 1);
-    const r = d.returns || {};
-    h += '<div class="card"><h3><span class="badge b-crypto">Crypto</span> '+s+' · '+(NAMES[s]||"")+'</h3>' +
-      '<div class="small">Trend score: is the price higher than it was…</div><div class="dots">' +
-      C.crypto.lookbacks.map(lb => { const v = r[lb]; return '<span class="'+(v==null?"":v>0?"yes":"no")+'">'+lb+' days ago<br>'+pct(v,1)+'</span>'; }).join("") + '</div>' +
-      '<dl class="kv"><dt>Trend score</dt><dd><b>'+(d.score==null?"–":Math.round(d.score*3)+" / 3")+'</b></dd>' +
-      '<dt>Volatility (annual)</dt><dd>'+pct(d.vol,0,false)+'</dd>' +
-      '<dt>Target share of sleeve</dt><dd><b>'+pct(d.target,1,false)+'</b></dd>' +
-      '<dt>Current share of sleeve</dt><dd>'+pct(cur,1,false)+'</dd></dl>' +
-      '<div class="bar"><i style="width:'+Math.min(100,(d.target||0)*100)+'%;background:var(--crypto);opacity:.35"></i><i style="width:'+Math.min(100,cur*100)+'%;background:var(--crypto);height:4px;top:2px"></i></div>' +
-      '<p class="small">Target = trend score × '+(C.crypto.vol_target*100)+'% ÷ volatility ÷ '+C.crypto.symbols.length+' coins. The target updates daily, but the bot only trades at the weekly check'+(sg.next_crypto_rebalance?' (next: '+esc(sg.next_crypto_rebalance)+')':'')+', and skips changes under '+(C.crypto.band*100)+'% of the sleeve to save fees.</p></div>';
-  });
-  const gap = nq.gap || 0, pos = 50 + Math.max(-48, Math.min(48, gap * 250));
-  h += '<div class="card"><h3><span class="badge b-nasdaq">Nasdaq</span> QQQ vs its '+C.nasdaq.sma_days+'-day average</h3>' +
-    '<div class="gauge"><div class="track"></div><div class="mid"></div><div class="needle" style="left:'+pos+'%"></div></div>' +
-    '<div class="small" style="display:flex;justify-content:space-between"><span>Below: hold '+C.nasdaq.risk_off+'</span><span>Above: hold '+C.nasdaq.risk_on+'</span></div>' +
-    '<dl class="kv" style="margin-top:12px"><dt>QQQ close ('+esc(sg.nasdaq_last_bar||"–")+')</dt><dd>'+money(nq.close)+'</dd>' +
-    '<dt>'+C.nasdaq.sma_days+'-day average</dt><dd>'+money(nq.sma)+'</dd><dt>Gap</dt><dd class="'+cls(gap)+'"><b>'+pct(gap,2)+'</b></dd>' +
-    '<dt>Signal says hold</dt><dd><b>'+esc(nq.holding||"–")+'</b></dd>' +
-    '<dt>Pending switch</dt><dd>'+(S.pending_stock?'to <b>'+esc(S.pending_stock.to)+'</b> next trading day':'none')+'</dd></dl>' +
-    '<p class="small">The bot checks this after every US close. A switch is placed the next trading day, the same delay used in the backtest.</p></div>';
+  C.crypto.symbols.forEach(s => { const d = cr[s] || {}, curW = n.value(s) / (n.crypto || 1), r = d.returns || {};
+    const lv = n.live && n.live.crypto_live && n.live.crypto_live[s];
+    h += '<div class="card"><h2><span class="badge b-crypto">Crypto</span> '+s+' · '+(NAMES[s]||"")+'</h2><div class="note">Is the price higher than it was…</div><div class="dots">' +
+      C.crypto.lookbacks.map(lb => { const v = r[lb]; return '<span class="'+(v==null?"":v>0?"y":"n")+'">'+lb+' days ago<br>'+pct(v,1)+'</span>'; }).join("") + '</div>' +
+      '<dl class="kv"><dt>Trend score (last daily close)</dt><dd><b>'+(d.score==null?"–":Math.round(d.score*3)+" / 3")+'</b></dd>' +
+      '<dt>Trend score at live price</dt><dd>'+(lv && lv.score != null ? Math.round(lv.score*3)+" / 3" : "–")+'</dd>' +
+      '<dt>Volatility (yearly)</dt><dd>'+pct(d.vol,0,false)+'</dd><dt>Target share of sleeve</dt><dd><b>'+pct(d.target,1,false)+'</b></dd><dt>Current share</dt><dd>'+pct(curW,1,false)+'</dd></dl>' +
+      '<p class="note">Target = score × '+(C.crypto.vol_target*100)+'% ÷ volatility ÷ '+C.crypto.symbols.length+'. Trades only at the weekly check'+(sg.next_crypto_rebalance?' (next '+esc(niceDate(sg.next_crypto_rebalance))+')':'')+'; changes under '+(C.crypto.band*100)+'% are skipped.</p></div>'; });
+  const g = nq.gap || 0, ql = n.live && n.live.nasdaq_live;
+  h += '<div class="card"><h2><span class="badge b-nasdaq">Nasdaq</span> QQQ vs its '+C.nasdaq.sma_days+'-day average</h2>' +
+    '<dl class="kv"><dt>Close ('+esc(sg.nasdaq_last_bar||"–")+')</dt><dd>'+money(nq.close)+'</dd><dt>'+C.nasdaq.sma_days+'-day average</dt><dd>'+money(nq.sma)+'</dd>' +
+    '<dt>Gap at close</dt><dd class="'+cls(g)+'"><b>'+pct(g,2)+'</b></dd><dt>Live price</dt><dd>'+(ql?money(ql.price)+' ('+pct(ql.gap,2)+')':"–")+'</dd>' +
+    '<dt>Signal says hold</dt><dd><b>'+esc(nq.holding||"–")+'</b></dd><dt>Pending switch</dt><dd>'+(S.pending_stock?'to <b>'+esc(S.pending_stock.to)+'</b> next trading day':'none')+'</dd></dl>' +
+    '<p class="note">QQQ needs to rise '+(g < 0 ? pct(-g/(1+g),1,false) : "–")+' to cross back above the average. Checked after every US close; a switch is placed the next trading day.</p></div>';
   $("#sigcards").innerHTML = h;
-})();
+}
 
-/* ---------- activity ---------- */
-(function activity(){
+function renderActivity() {
   const ev = (S.events || []).slice().reverse().slice(0, 150);
   $("#events").innerHTML = ev.length ? ev.map(e => '<div class="ev"><span class="d">'+esc(e.date)+'</span><span class="lv lv-'+esc(e.level)+'">'+esc(e.level)+'</span><span>'+esc(e.msg)+'</span></div>').join("") : '<div class="empty">Nothing yet.</div>';
-  $("#datalog").innerHTML = (S.data_log || []).map(l => '<div>'+esc(l)+'</div>').join("") || "–";
+  const n = cur();
+  let h = '<thead><tr><th>Asset</th><th>Source</th><th class="num">Live price</th><th>Last daily close</th><th>Status</th></tr></thead><tbody>';
+  ["BTC","ETH","QQQ","QLD","SHY"].forEach(s => {
+    const bar = L && L.bars_end ? L.bars_end[s] : (["BTC","ETH"].includes(s) ? S.last_crypto_bar : S.last_stock_bar);
+    const age = L && L.bar_age_days ? L.bar_age_days[s] : null, crypto = ["BTC","ETH"].includes(s);
+    const ok = age != null && (crypto ? age <= 1 : age <= 4);
+    h += '<tr><td><b>'+s+'</b></td><td>'+esc(sourceOf(s))+'</td><td class="num">'+money(n.prices[s], n.prices[s] < 10 ? 4 : 2)+'</td><td>'+esc(bar||"–")+(age!=null?' <span class="note">('+age+'d)</span>':'')+'</td>' +
+      '<td><span class="badge '+(age==null?"b-grey":ok?"b-ok":"b-warn")+'">'+(age==null?"no data":ok?"current":"stale")+'</span></td></tr>'; });
+  $("#datacheck").innerHTML = h + "</tbody>";
+  $("#datanote").textContent = "Prices fetched " + (L ? niceTime(L.time) + " (" + ago(L.time) + ")" : "at the last daily run") +
+    ". Crypto daily closes are at midnight UTC; stock closes are the last US trading day, so weekends show 2-3 days.";
   const sg = S.signals || {};
-  const checks = [
-    ["Crypto data fresh", sg.crypto_ok, "latest bar " + (sg.crypto_last_bar || "–")],
-    ["Stock data fresh", sg.nasdaq_ok, "latest bar " + (sg.nasdaq_last_bar || "–")],
-    ["Safety stop not triggered", !S.halted, S.halted ? S.halt_reason : "halts at -" + (C.halt_at*100).toFixed(0) + "% from peak"],
-    ["Runs completed", S.runs > 0, (S.runs || 0) + " daily runs since " + (S.start_date || "–")],
-  ];
-  $("#health").innerHTML = checks.map(c => '<div class="ev"><span class="lv '+(c[1]?"lv-trade":"lv-error")+'">'+(c[1]?"OK":"CHECK")+'</span><span><b>'+c[0]+'</b><br><span class="small">'+esc(c[2])+'</span></span></div>').join("");
-})();
-
-/* ---------- about ---------- */
-(function about(){
-  const r = C.reference;
-  $("#rules").innerHTML = '<h2>The rules, in plain English</h2>' +
-    '<p>The account is split 50/50 into two sleeves and reset to 50/50 at the start of each month.</p>' +
-    '<p><span class="badge b-crypto">Crypto sleeve</span> Every Monday the bot scores Bitcoin and Ethereum: is the price higher than '+C.crypto.lookbacks.join(", ")+' days ago? Each "yes" adds a third. Calmer coins get bigger positions: the size is the score × '+(C.crypto.vol_target*100)+'% ÷ the coin\'s volatility ÷ 2, never more than 100% of the sleeve and never borrowed money. Anything unused stays in cash.</p>' +
-    '<p><span class="badge b-nasdaq">Nasdaq sleeve</span> After every US close the bot compares QQQ (the Nasdaq-100) to its '+C.nasdaq.sma_days+'-day average. Above it, the sleeve holds QLD, a fund that moves about twice as much as the Nasdaq-100. Below it, the sleeve moves to SHY (short-term US Treasuries) on the next trading day.</p>' +
-    '<p><b>Safety:</b> if the account ever falls '+(C.halt_at*100).toFixed(0)+'% below its peak, the bot stops trading until you review it. It also refuses to trade on stale or mismatched prices and blocks any oversized order.</p>' +
-    '<h2 style="margin-top:18px">Before going live, check</h2><ul class="checklist">' +
-    '<li>The bot ran every day with no gaps or data errors.</li>' +
-    '<li>Every trade on the Trades tab matches the rules above.</li>' +
-    '<li>Fees and fill prices look like what your real broker would charge.</li>' +
-    '<li>You\'re comfortable with the size of the swings: in the backtest the worst drop was '+pct(r.max_drawdown,0,false)+'.</li></ul>';
-  $("#refcard").innerHTML = '<h2>What to expect (backtest)</h2><dl class="kv">' +
-    '<dt>Yearly return</dt><dd><b>'+pct(r.cagr,1,false)+'</b></dd><dt>Worst drop</dt><dd><b class="down">'+pct(r.max_drawdown,1,false)+'</b></dd>' +
-    '<dt>Sharpe ratio</dt><dd>'+r.sharpe.toFixed(2)+'</dd><dt>Period</dt><dd>Jan 2018 – May 2026</dd></dl>' +
-    '<p class="small" style="margin-top:12px">After fees. A single month says almost nothing about these numbers: in the backtest about two months in five (41%) lost money. The paper month is a test that the machinery works, not of the strategy.</p>';
-})();
-
-/* ---------- routing ---------- */
-function route(){
-  const id = (location.hash || "#overview").slice(1);
-  const ok = document.getElementById(id) && document.getElementById(id).tagName === "SECTION" ? id : "overview";
-  document.querySelectorAll("main section").forEach(s => s.classList.toggle("on", s.id === ok));
-  document.querySelectorAll("#nav a").forEach(a => a.classList.toggle("on", a.getAttribute("href") === "#" + ok));
-  if (ok === "overview") draw();
+  const checks = [["Crypto data fresh", sg.crypto_ok !== false, "latest daily close " + (S.last_crypto_bar || "–")],
+                  ["Stock data fresh", sg.nasdaq_ok !== false, "latest daily close " + (S.last_stock_bar || "–")],
+                  ["Live prices updating", L && (Date.now() - Date.parse(L.time)) < 45*60000, L ? "last check " + ago(L.time) : "no live check yet"],
+                  ["Safety stop not triggered", !S.halted, S.halted ? S.halt_reason : "stops at -" + (C.halt_at*100).toFixed(0) + "% from peak"],
+                  ["Daily runs completed", S.runs > 0, (S.runs||0) + " since " + (S.start_date||"–")]];
+  $("#health").innerHTML = checks.map(c => '<div class="ev"><span class="lv '+(c[1]?"lv-trade":"lv-error")+'">'+(c[1]?"OK":"CHECK")+'</span><span><b>'+c[0]+'</b><br><span class="note">'+esc(c[2])+'</span></span></div>').join("");
 }
+
+function renderAbout() {
+  const r = C.reference;
+  $("#rules").innerHTML = '<h2>The rules</h2>' +
+    '<p>The account is split 50/50 and reset to 50/50 at the start of each month.</p>' +
+    '<p><span class="badge b-crypto">Crypto</span> Every Monday the bot asks of Bitcoin and Ethereum: is the price higher than '+C.crypto.lookbacks.join(", ")+' days ago? Each yes adds a third to the score. Calmer coins get bigger positions: score × '+(C.crypto.vol_target*100)+'% ÷ volatility ÷ 2, never more than the whole sleeve, never borrowed. The rest stays in cash.</p>' +
+    '<p><span class="badge b-nasdaq">Nasdaq</span> After every US close it compares QQQ with its '+C.nasdaq.sma_days+'-day average. Above: hold QLD, which moves about twice as much as the Nasdaq-100. Below: move to SHY (short-term Treasuries) the next trading day.</p>' +
+    '<p><b>Every 10 minutes</b> the app gets live prices and values the account. It never trades on these checks: the strategy was tested on daily closes, so it only trades once a day. If the daily check was missed, the next 10-minute check runs it.</p>' +
+    '<p><b>Safety:</b> stops trading at -'+(C.halt_at*100).toFixed(0)+'% from peak, skips trading on stale or mismatched prices, blocks oversized orders.</p>' +
+    '<h2 style="margin-top:16px">Use it like an app on your Mac</h2><p>In Safari: open this page, then <b>File → Add to Dock</b>. In Chrome: <b>⋮ → Cast, save, and share → Install page as app</b>. Shortcuts: ⌘1–⌘7 switch sections, R refreshes.</p>';
+  $("#refcard").innerHTML = '<h2>What to expect (backtest)</h2><dl class="kv"><dt>Yearly return</dt><dd><b>'+pct(r.cagr,1,false)+'</b></dd><dt>Worst drop</dt><dd><b class="down">'+pct(r.max_drawdown,1,false)+'</b></dd><dt>Sharpe ratio</dt><dd>'+r.sharpe.toFixed(2)+'</dd><dt>Period</dt><dd>Jan 2018 – May 2026</dd></dl>' +
+    '<p class="note">After fees. About two months in five lost money. One paper month tests the machinery, not the strategy.</p>' +
+    '<h2 style="margin-top:16px">Before real money</h2><ul class="note"><li>Every day ran with no unexplained warnings.</li><li>Each trade matches the rules.</li><li>Fees and fills look like your real broker\'s.</li><li>You\'re comfortable with drops like '+pct(r.max_drawdown,0,false)+'.</li></ul>';
+}
+
+function renderAll() {
+  D = window.BOT_DATA; L = window.BOT_LIVE || null;
+  if (!D) { $("#content").innerHTML = '<div class="card empty">No data yet. The app fills in after the bot\'s first run.</div>'; return; }
+  S = D.state; C = D.config; EQ = S.equity || []; T = D.trades || []; start = C.starting_cash;
+  renderStatus(); renderOverview(); renderPositions(); renderTrades(); renderSignals(); renderActivity(); renderAbout();
+  if ($("#charts").classList.contains("on")) renderCharts();
+}
+
+/* ------------------------------------------------ navigation + refresh ------------------------------------------------ */
+function route() {
+  const id = (location.hash || "#overview").slice(1), ok = SECTIONS.some(s => s[0] === id) ? id : "overview";
+  document.querySelectorAll("section").forEach(s => s.classList.toggle("on", s.id === ok));
+  document.querySelectorAll("#nav a").forEach(a => a.classList.toggle("on", a.getAttribute("href") === "#" + ok));
+  $("#title").textContent = SECTIONS.find(s => s[0] === ok)[1];
+  $("#content").scrollTop = 0;
+  if (D) { if (ok === "charts") renderCharts(); if (ok === "overview") renderOverview(); }
+}
+function load(src, done) { const s = document.createElement("script"); s.src = src + "?t=" + Date.now(); s.onload = s.onerror = () => { s.remove(); done && done(); }; document.body.appendChild(s); }
+function refresh(full) { const after = () => { renderAll(); route(); }; if (full) load("data.js", () => load("live.js", after)); else load("live.js", after); }
 window.addEventListener("hashchange", route);
-route();
-})();
+document.addEventListener("keydown", e => {
+  if ((e.metaKey || e.ctrlKey) && e.key >= "1" && e.key <= String(SECTIONS.length)) { e.preventDefault(); location.hash = SECTIONS[+e.key - 1][0]; }
+  else if (e.key.toLowerCase() === "r" && !e.metaKey && !e.ctrlKey && !["INPUT","SELECT"].includes(document.activeElement.tagName)) refresh(true);
+});
+$("#reload").addEventListener("click", () => refresh(true));
+$("#ov-range").addEventListener("click", e => { if (!e.target.dataset.r) return; ovRange = +e.target.dataset.r;
+  [...$("#ov-range").children].forEach(b => b.classList.toggle("on", b === e.target)); renderOverview(); });
+document.querySelectorAll(".rng").forEach(sg => sg.addEventListener("click", e => { if (!e.target.dataset.d) return; RNG[sg.dataset.c] = +e.target.dataset.d;
+  [...sg.children].forEach(b => b.classList.toggle("on", b === e.target)); priceChart(sg.dataset.c); }));
+["#f-sleeve","#f-side","#f-q"].forEach(s => $(s).addEventListener("input", renderTrades));
+renderAll(); route();
+setInterval(() => refresh(false), 60000);       // new live prices land every ~10 min
+setInterval(() => refresh(true), 10 * 60000);   // full data after the daily run
+setInterval(() => D && renderStatus(), 20000);  // keep "updated x min ago" fresh
+}
 </script>
 </body>
 </html>

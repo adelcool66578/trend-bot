@@ -88,10 +88,11 @@ def run_once(cfg, state, data, broker=None, today=None, force=False):
 
     # ---------- 1) data ----------
     closes, prices, ok_c, ok_s = {}, dict(state["prices"]), True, True
-    last_bar = {}
+    last_bar, crypto_bars = {}, {}
     for s in c["symbols"]:
         try:
             bars, cur = data.crypto(s)
+            crypto_bars[s] = bars
             closes[s] = [b[1] for b in bars]; last_bar[s] = bars[-1][0]; prices[s] = cur
             age = (dt.date.fromisoformat(today) - dt.date.fromisoformat(bars[-1][0])).days
             if age > c["max_data_age_days"]:
@@ -109,6 +110,12 @@ def run_once(cfg, state, data, broker=None, today=None, force=False):
         except DataError as e:
             ok_s = False; report["warnings"].append(f"{s}: {e}")
     state["data_log"] = list(getattr(data, "log", []))[-20:]
+    # keep about a year of daily closes for the dashboard charts
+    hist = state.setdefault("history", {})
+    for s, bars in crypto_bars.items():
+        hist[s] = [list(b) for b in bars[-400:]]
+    for s, bars in stock_bars.items():
+        hist[s] = [list(b) for b in bars[-400:]]
     for w in report["warnings"]:
         _event(state, today, "warn", w)
     q_bars = stock_bars.get(n["signal_symbol"], [])
