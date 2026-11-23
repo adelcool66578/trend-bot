@@ -3,6 +3,7 @@ import copy
 import datetime as dt
 import json
 import math
+import os
 import sys
 import tempfile
 import threading
@@ -421,6 +422,12 @@ class TestMorningNotices(unittest.TestCase):
         self.assertEqual(self._run(state, live, now, event="workflow_dispatch"), [])
         self.assertEqual(self._run(state, live, now, event="schedule"), ["Trend Bot: live checks running"])
         self.assertEqual(self._run(state, live, now, event="schedule"), [])
+        live2 = copy.deepcopy(live); live2["schedule_confirmed"] = None
+        os.environ["TRIGGER_SOURCE"] = "cron"
+        try:
+            self.assertEqual(self._run(state, live2, now, event="workflow_dispatch"), ["Trend Bot: live checks running"])
+        finally:
+            os.environ.pop("TRIGGER_SOURCE", None)
 
 
 class FakeAlpaca(BaseHTTPRequestHandler):

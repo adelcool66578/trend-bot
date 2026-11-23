@@ -13,6 +13,10 @@ on:
         type: choice
         options: [refresh, test-alert]
         default: refresh
+      source:
+        description: "Who started it (cron = the outside 10-minute scheduler)"
+        type: string
+        default: manual
 
 permissions:
   contents: write              # lets the bot commit its state and dashboard
@@ -40,6 +44,7 @@ jobs:
           ALPACA_KEY_ID: ${{ secrets.ALPACA_KEY_ID }}
           ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          TRIGGER_SOURCE: ${{ inputs.source || github.event_name }}
         run: python -m tradebot ${{ inputs.command || 'refresh' }}
 
       - name: Save state and dashboard
